@@ -1,5 +1,15 @@
 // In build.gradle.kts (app)
 
+// Step 1: Add code to read from local.properties
+import java.util.Properties
+
+val properties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    properties.load(localPropertiesFile.inputStream())
+}
+
+
 plugins {
     id("com.google.gms.google-services")
     alias(libs.plugins.android.application)
@@ -18,6 +28,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Step 2: Create a placeholder for the API key in the manifest
+        manifestPlaceholders["MAPS_API_KEY"] = properties.getProperty("MAPS_API_KEY") ?: ""
     }
 
     buildTypes {
@@ -43,7 +56,10 @@ android {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:33.15.0")) // The version might be slightly different, that's okay
+    // We will add Firebase Firestore here later for saving user data
+    // implementation("com.google.firebase:firebase-firestore")
+
+    implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
 
@@ -56,7 +72,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    // --- THESE ARE THE ADDED LINES ---
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
 }

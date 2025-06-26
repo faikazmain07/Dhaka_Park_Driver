@@ -28,9 +28,10 @@
         You MUST get a Google Maps API key and paste it here.
         The map will NOT work without it.
         -->
+
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDVJlPCPx7zFkiPBJYT0dKm7Fe2BZ0NJuM" />
+            android:value="${MAPS_API_KEY}" />
 
 
         <!-- Your Activities -->
