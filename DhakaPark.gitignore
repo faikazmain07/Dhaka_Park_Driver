@@ -1,0 +1,14 @@
+# Folders to ignore
+.gradle/
+.idea/
+build/
+captures/
+
+# Files to ignore
+*.iml
+local.properties
+.DS_Store
+
+# Keystore files
+*.jks
+*.keystore
