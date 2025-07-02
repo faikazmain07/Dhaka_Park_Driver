@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
-    <!--
-    Permissions required for Google Maps.
-    FINE_LOCATION is for high-precision GPS.
-    COARSE_LOCATION is for network-based location.
-    INTERNET is required to download map tiles.
-    -->
+    <!-- Permissions required for Google Maps and Internet access. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -22,31 +16,46 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DhakaParkDriver"
         tools:targetApi="31">
-
-        <!--
-        !!!! CRITICAL !!!!
-        You MUST get a Google Maps API key and paste it here.
-        The map will NOT work without it.
-        -->
-
+        <activity
+            android:name=".ParkingDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".DriverDashboardActivity"
+            android:exported="false" />
+        <activity
+            android:name=".DriverProfileSetupActivity"
+            android:exported="false" /> <!-- This meta-data tag holds the secured Google Maps API key. -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
-
-
-        <!-- Your Activities -->
+        <!--
+         SplashActivity is now the LAUNCHER activity.
+         This is the first screen the user sees.
+         android:exported="true" is required for launcher activities.
+        -->
         <activity
-            android:name=".RegisterActivity"
+            android:name=".SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity android:name=".MapActivity" />
-        <!-- Add other activities like WelcomeActivity here -->
-
+        <!--
+         RegisterActivity is now a regular activity.
+         The intent-filter has been removed.
+         android:exported can be set to "false" as it's only launched from within our app.
+        -->
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false" /> <!-- LoginActivity is also a regular activity. -->
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false" /> <!-- MapActivity is our main content screen. -->
+        <activity
+            android:name=".MapActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
