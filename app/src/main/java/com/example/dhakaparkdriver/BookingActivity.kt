@@ -1,7 +1,7 @@
 package com.example.dhakaparkdriver
 
 import android.os.Bundle
-import android.view.View
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.dhakaparkdriver.databinding.ActivityBookingBinding
@@ -34,7 +34,7 @@ class BookingActivity : AppCompatActivity() {
         spotId = intent.getStringExtra("SPOT_ID")
         val spotName = intent.getStringExtra("SPOT_NAME") ?: "Unknown Spot"
         pricePerHour = intent.getLongExtra("SPOT_PRICE_PER_HOUR", 0)
-        totalSlots = intent.getLongExtra("SPOT_AVAILABLE_SLOTS", 0) // We use this as total slots now
+        totalSlots = intent.getLongExtra("SPOT_AVAILABLE_SLOTS", 0)
 
         binding.tvSpotName.text = spotName
         binding.tvTotalSlots.text = "Total Parking Slots: $totalSlots"
@@ -63,73 +63,59 @@ class BookingActivity : AppCompatActivity() {
             calendar.set(Calendar.HOUR_OF_DAY, picker.hour)
             calendar.set(Calendar.MINUTE, picker.minute)
             calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+
+            val selectedTimeMillis = calendar.timeInMillis
+            val formattedTime = formatTime(selectedTimeMillis)
 
             if (isStartTime) {
-                startTimeMillis = calendar.timeInMillis
-                binding.tvStartTime.text = formatTime(startTimeMillis!!)
+                startTimeMillis = selectedTimeMillis
+                binding.tvStartTime.text = formattedTime
             } else {
-                endTimeMillis = calendar.timeInMillis
-                binding.tvEndTime.text = formatTime(endTimeMillis!!)
+                endTimeMillis = selectedTimeMillis
+                binding.tvEndTime.text = formattedTime
             }
 
-            // After any time is picked, check availability and calculate price
             if (startTimeMillis != null && endTimeMillis != null) {
                 checkAvailability()
             }
         }
     }
 
+    // --- THIS IS THE MODIFIED "TEST VERSION" OF THE FUNCTION ---
     private fun checkAvailability() {
-        if (startTimeMillis == null || endTimeMillis == null || spotId == null) return
-
-        if (endTimeMillis!! <= startTimeMillis!!) {
-            Toast.makeText(this, "End time must be after start time.", Toast.LENGTH_SHORT).show()
-            return
+        // Basic validation to ensure we have the necessary data before proceeding.
+        if (startTimeMillis == null || endTimeMillis == null || spotId == null) {
+            Toast.makeText(this, "Time or Spot ID is missing.", Toast.LENGTH_SHORT).show()
+            return // Exit if data is incomplete
         }
 
-        binding.tvTimeAvailability.text = "Checking availability..."
-        binding.btnConfirmBooking.isEnabled = false
+        // Ensure the end time is after the start time.
+        if (endTimeMillis!! <= startTimeMillis!!) {
+            Toast.makeText(this, "End time must be after start time.", Toast.LENGTH_SHORT).show()
+            binding.btnConfirmBooking.isEnabled = false
+            binding.tvTotalPrice.text = "-- BDT"
+            return // Exit if times are invalid
+        }
 
-        val userStartTime = Date(startTimeMillis!!)
-        val userEndTime = Date(endTimeMillis!!)
+        // --- TEMPORARY TEST LOGIC ---
+        // We are completely skipping the Firestore query for now.
+        // We will assume that a slot is always available and proceed directly to the price calculation.
+        Log.d("BookingActivity", "TEST MODE: Bypassing Firestore availability check.")
+        Toast.makeText(this, "DEBUG: Checking price...", Toast.LENGTH_SHORT).show()
+        binding.tvTimeAvailability.text = "Slots available (Debug Mode)"
 
-        // Query for all bookings for this specific spot
-        db.collection("bookings")
-            .whereEqualTo("spotId", spotId)
-            .get()
-            .addOnSuccessListener { documents ->
-                var conflictingBookings = 0
-                for (doc in documents) {
-                    val bookingStartTime = doc.getDate("startTime")
-                    val bookingEndTime = doc.getDate("endTime")
-
-                    // Check for time overlap
-                    if (bookingStartTime != null && bookingEndTime != null) {
-                        if (userStartTime.before(bookingEndTime) && userEndTime.after(bookingStartTime)) {
-                            conflictingBookings++
-                        }
-                    }
-                }
-
-                val availableNow = totalSlots - conflictingBookings
-                binding.tvTimeAvailability.text = "$availableNow slots available for this time"
-
-                if (availableNow > 0) {
-                    calculatePrice() // Calculate price only if slots are available
-                } else {
-                    binding.tvTimeAvailability.text = "No slots available for this time"
-                    binding.tvTotalPrice.text = "-- BDT"
-                    binding.btnConfirmBooking.isEnabled = false
-                }
-            }
-            .addOnFailureListener {
-                binding.tvTimeAvailability.text = "Could not check availability."
-                Toast.makeText(this, "Error checking availability.", Toast.LENGTH_SHORT).show()
-            }
+        // Because we are assuming a slot is available, we now directly call the price calculation.
+        calculatePrice()
     }
 
     private fun calculatePrice() {
-        // This function is now simpler as it's only called when a slot is available
+        if (pricePerHour <= 0) {
+            binding.tvTotalPrice.text = "Price not available"
+            binding.btnConfirmBooking.isEnabled = false
+            return
+        }
+
         val durationMillis = endTimeMillis!! - startTimeMillis!!
         val durationHours = TimeUnit.MILLISECONDS.toHours(durationMillis)
         val remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis) - TimeUnit.HOURS.toMinutes(durationHours)
@@ -142,14 +128,44 @@ class BookingActivity : AppCompatActivity() {
         binding.btnConfirmBooking.isEnabled = true
     }
 
-    // confirmBooking() and formatTime() functions remain the same as before
-    // ...
     private fun formatTime(millis: Long): String {
         val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
         return sdf.format(Date(millis))
     }
 
     private fun confirmBooking() {
-        // ... (The confirmBooking function from the previous step goes here, no changes needed)
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            Toast.makeText(this, "You must be logged in to book.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (spotId == null || startTimeMillis == null || endTimeMillis == null) {
+            Toast.makeText(this, "Please select all booking details.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        binding.btnConfirmBooking.isEnabled = false
+        Toast.makeText(this, "Confirming booking...", Toast.LENGTH_SHORT).show()
+
+        val bookingData = hashMapOf(
+            "spotId" to spotId,
+            "driverId" to currentUser.uid,
+            "startTime" to Date(startTimeMillis!!),
+            "endTime" to Date(endTimeMillis!!),
+            "totalPrice" to binding.tvTotalPrice.text.toString(),
+            "status" to "confirmed",
+            "createdAt" to System.currentTimeMillis()
+        )
+
+        db.collection("bookings").add(bookingData)
+            .addOnSuccessListener {
+                Toast.makeText(this, "Booking confirmed successfully!", Toast.LENGTH_LONG).show()
+                finish()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Booking failed: ${e.message}", Toast.LENGTH_LONG).show()
+                binding.btnConfirmBooking.isEnabled = true
+            }
     }
 }

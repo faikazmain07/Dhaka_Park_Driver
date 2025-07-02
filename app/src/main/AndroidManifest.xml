@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissions required for Google Maps and Internet access. -->
+    <!-- Permissions required for Google Maps, location, and internet access. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -18,14 +18,18 @@
         android:theme="@style/Theme.DhakaParkDriver"
         tools:targetApi="31">
 
-        <!-- Secured Google Maps API key -->
+        <!-- Secured Google Maps API key. This is a best practice. -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
-        <!-- Launcher Activity: This is the first screen the user sees. -->
+        <!--
+         LAUNCHER ACTIVITY
+         MainActivity is now the single entry point for the app.
+         It hosts the NavHostFragment which controls all the fragment-based UI.
+        -->
         <activity
-            android:name=".SplashActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -33,31 +37,24 @@
             </intent-filter>
         </activity>
 
-        <!-- Authentication Activities -->
-        <activity
-            android:name=".LoginActivity"
-            android:exported="false" />
-        <activity
-            android:name=".RegisterActivity"
-            android:exported="false" />
-
-        <!-- Main Dashboard/Content Activities -->
+        <!--
+         REGULAR ACTIVITIES
+         These are other full-screen activities in the app that are launched via Intents.
+         They are not entry points from the phone's home screen.
+        -->
         <activity
             android:name=".DriverDashboardActivity"
             android:exported="false" />
 
-        <!-- Detail and Other Activities -->
         <activity
             android:name=".BookingActivity"
             android:exported="false" />
-        <activity
-            android:name=".ParkingDetailActivity"
-            android:exported="false" />
-        <activity
-            android:name=".DriverProfileSetupActivity"
-            android:exported="false" />
 
-        <!-- The declaration for the old MapActivity has been removed. -->
+        <!--
+         NOTE: Old activities like SplashActivity and LoginActivity have been removed
+         because their functionality is now handled by Fragments inside MainActivity.
+         We will create and add RegisterActivity/Fragment later.
+        -->
 
     </application>
 
