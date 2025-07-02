@@ -40,7 +40,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_nearby_spots_label"
-        tools:listitem="@layout/item_parking_spot" />
+        tools:listitem="@layout/list_item_parking_spot" />
     <!-- tools:listitem helps preview the list in the editor. We'll create this next. -->
 
     <ProgressBar

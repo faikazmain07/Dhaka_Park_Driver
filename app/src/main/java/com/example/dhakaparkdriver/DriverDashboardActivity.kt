@@ -2,9 +2,11 @@ package com.example.dhakaparkdriver
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.location.Location
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -19,11 +21,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.*
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
@@ -33,21 +31,17 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val db = Firebase.firestore
+    private val markerMap = HashMap<Marker, ParkingSpot>()
 
-    // --- NEW: Variables for the RecyclerView ---
     private lateinit var parkingListAdapter: ParkingListAdapter
     private val parkingSpotList = mutableListOf<ParkingSpot>()
-    // ---
 
-    private val parkingSpotLocations = mutableListOf<LatLng>()
-
-    private val locationPermissionRequest = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
+    private val locationPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
             showUserLocation()
         } else {
-            Toast.makeText(this, "Location permission is required to show your position.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Location permission is required to see nearby spots.", Toast.LENGTH_LONG).show()
+            fetchAndDisplayParkingSpots(null)
         }
     }
 
@@ -56,35 +50,41 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityDriverDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // --- ADDED: Setup for the RecyclerView ---
-        parkingListAdapter = ParkingListAdapter(parkingSpotList, this) // Pass context
-        binding.rvParkingSpots.layoutManager = LinearLayoutManager(this)
-        binding.rvParkingSpots.adapter = parkingListAdapter
-        // ---
+        setupRecyclerView()
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.map_fragment_container) as SupportMapFragment
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment_container) as SupportMapFragment
         mapFragment.getMapAsync(this)
+    }
+
+    private fun setupRecyclerView() {
+        parkingListAdapter = ParkingListAdapter(parkingSpotList) { spot ->
+            launchBookingActivity(spot)
+        }
+        binding.rvParkingSpots.layoutManager = LinearLayoutManager(this)
+        binding.rvParkingSpots.adapter = parkingListAdapter
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+        // Set the custom info window adapter to show details on marker tap
         mMap.setInfoWindowAdapter(CustomInfoWindowAdapter(this))
+
+        // Set the listener for when a user clicks on the info window itself
+        mMap.setOnInfoWindowClickListener { marker ->
+            val spot = markerMap[marker]
+            if (spot != null) {
+                launchBookingActivity(spot)
+            }
+        }
         checkLocationPermission()
     }
 
     private fun checkLocationPermission() {
-        when {
-            ContextCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                showUserLocation()
-            }
-            else -> {
-                locationPermissionRequest.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            showUserLocation()
+        } else {
+            locationPermissionRequest.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
@@ -93,93 +93,94 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap.isMyLocationEnabled = true
         mMap.uiSettings.isMyLocationButtonEnabled = true
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                fetchAndDisplayParkingSpots(location)
-            } else {
-                Toast.makeText(this, "Could not get your location. Please ensure location is enabled.", Toast.LENGTH_SHORT).show()
-                fetchAndDisplayParkingSpots(null)
-            }
+            fetchAndDisplayParkingSpots(location)
         }
     }
 
-    private fun fetchAndDisplayParkingSpots(userLocation: android.location.Location?) {
+    private fun fetchAndDisplayParkingSpots(userLocation: Location?) {
         binding.progressBar.visibility = View.VISIBLE
-        db.collection("parking_spots")
-            .whereEqualTo("isAvailable", true)
-            .get()
+        db.collection("parking_spots").whereEqualTo("isAvailable", true).get()
             .addOnSuccessListener { documents ->
-                parkingSpotLocations.clear()
-                parkingSpotList.clear() // Clear the list for the adapter
                 mMap.clear()
+                markerMap.clear()
+                parkingSpotList.clear()
 
                 for (document in documents) {
-                    val spot = ParkingSpot(
+                    val name = document.getString("name") ?: "N/A"
+                    val locationData = document.getGeoPoint("location")
+                    val availableSlots = document.getLong("availableSlots") ?: 0
+                    val price = document.getLong("pricePerHour") ?: 0
+                    val operatingHours = document.getString("operatingHours") ?: "N/A"
+
+                    val parkingSpot = ParkingSpot(
                         id = document.id,
-                        spotName = document.getString("spotName"),
-                        location = document.getGeoPoint("location"),
-                        pricePerHour = document.getLong("pricePerHour")
+                        name = name,
+                        availableSlots = availableSlots,
+                        pricePerHour = price
                     )
 
-                    if (userLocation != null && spot.location != null) {
-                        val spotLocation = android.location.Location("").apply {
-                            latitude = spot.location!!.latitude
-                            longitude = spot.location!!.longitude
+                    if (userLocation != null && locationData != null) {
+                        val spotLocation = Location("").apply {
+                            latitude = locationData.latitude
+                            longitude = locationData.longitude
                         }
-                        spot.distance = userLocation.distanceTo(spotLocation)
+                        parkingSpot.distance = userLocation.distanceTo(spotLocation)
                     }
+                    parkingSpotList.add(parkingSpot)
 
-                    parkingSpotList.add(spot)
+                    if (locationData != null) {
+                        val spotLatLng = LatLng(locationData.latitude, locationData.longitude)
+                        val snippet = "Available: $availableSlots | ${price} BDT/hr\nTap to book now!" // Simple snippet for the info window
 
-                    // Marker adding logic (no changes here)
-                    val location = document.getGeoPoint("location")
-                    val availableSlots = document.getLong("availableSlots") ?: 0
-                    val operatingHours = document.getString("operatingHours") ?: "N/A"
-                    val price = document.getLong("pricePerHour") ?: 0
-                    val snippet = "Available Slots: $availableSlots\n" +
-                            "Hours: $operatingHours\n" +
-                            "Price: $price BDT/hr"
-                    if (location != null) {
-                        val spotLatLng = LatLng(location.latitude, location.longitude)
-                        parkingSpotLocations.add(spotLatLng)
-                        mMap.addMarker(
+                        val marker = mMap.addMarker(
                             MarkerOptions()
                                 .position(spotLatLng)
-                                .title(spot.spotName)
+                                .title(name)
                                 .snippet(snippet)
                                 .icon(bitmapDescriptorFromVector(R.drawable.ic_parking_marker))
                         )
+                        if (marker != null) {
+                            markerMap[marker] = parkingSpot
+                        }
                     }
                 }
 
-                parkingSpotList.sortBy { it.distance } // Sort by distance
-                parkingListAdapter.notifyDataSetChanged() // Refresh the list
+                parkingSpotList.sortBy { it.distance }
+                parkingListAdapter.notifyDataSetChanged()
                 binding.progressBar.visibility = View.GONE
-
                 zoomCameraToFit(userLocation)
             }
             .addOnFailureListener { exception ->
                 binding.progressBar.visibility = View.GONE
-                Toast.makeText(this, "Error getting spots: ${exception.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Error getting parking spots: ${exception.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun zoomCameraToFit(userLocation: android.location.Location?) {
-        if (parkingSpotLocations.isEmpty() && userLocation == null) return
-        if (parkingSpotLocations.isEmpty() && userLocation != null) {
-            val userLatLng = LatLng(userLocation.latitude, userLocation.longitude)
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15f))
-            return
+    private fun launchBookingActivity(spot: ParkingSpot) {
+        val intent = Intent(this, BookingActivity::class.java).apply {
+            putExtra("SPOT_ID", spot.id)
+            putExtra("SPOT_NAME", spot.name)
+            putExtra("SPOT_PRICE_PER_HOUR", spot.pricePerHour)
+            putExtra("SPOT_AVAILABLE_SLOTS", spot.availableSlots)
         }
+        startActivity(intent)
+    }
+
+    private fun zoomCameraToFit(userLocation: Location?) {
+        if (markerMap.isEmpty() && userLocation == null) return
+
         val boundsBuilder = LatLngBounds.Builder()
-        for (spotLocation in parkingSpotLocations) {
-            boundsBuilder.include(spotLocation)
+        markerMap.keys.forEach { marker ->
+            boundsBuilder.include(marker.position)
         }
         if (userLocation != null) {
-            val userLatLng = LatLng(userLocation.latitude, userLocation.longitude)
-            boundsBuilder.include(userLatLng)
+            boundsBuilder.include(LatLng(userLocation.latitude, userLocation.longitude))
         }
-        val bounds = boundsBuilder.build()
-        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150))
+
+        if (markerMap.isNotEmpty() || userLocation != null) {
+            val bounds = boundsBuilder.build()
+            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150))
+        }
     }
 
     private fun bitmapDescriptorFromVector(vectorResId: Int): BitmapDescriptor? {

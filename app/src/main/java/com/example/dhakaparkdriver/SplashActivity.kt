@@ -48,7 +48,7 @@ class SplashActivity : AppCompatActivity() {
 
                     // Route the user based on their role
                     when (role) {
-                        "driver" -> navigateTo(DriverDashboardActivity::class.java)
+                        "driver" -> navigateTo(DriverDashboardActivity::class.java) // <--- CORRECT: Navigates to the new dashboard
                         "owner" -> {
                             // TODO: Create OwnerDashboardActivity and navigate here
                             Toast.makeText(this, "Owner Dashboard coming soon!", Toast.LENGTH_SHORT).show()

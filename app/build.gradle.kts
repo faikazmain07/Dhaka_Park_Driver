@@ -56,28 +56,35 @@ android {
 }
 
 dependencies {
-    // Firebase Bill of Materials (BoM) - manages versions for all Firebase libraries
-    implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
+    // Import the Firebase BoM (Bill of Materials) - manages versions for all Firebase libraries
+    // Using a recent, stable version of the BoM.
+    implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
 
-    // Firebase libraries
+    // Declare the Firebase library dependencies WITHOUT specifying versions.
+    // The BoM will handle selecting the correct, compatible versions for you.
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore") // <--- THIS IS THE CORRECTLY PLACED FIRESTORE DEPENDENCY
+    implementation("com.google.firebase:firebase-firestore")
 
-    // AndroidX libraries (from libs.versions.toml)
+    // AndroidX libraries (from your libs.versions.toml file)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    implementation(libs.material) // This already includes the Material Design components
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+
+    // Google Play Services for Maps and Location (these are separate from Firebase BoM)
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0") // Updated to a recent stable version
+
+    // Glide for image loading (this is fine as is)
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    // REMOVED: The separate Material library declaration as it's redundant.
+    // implementation("com.google.android.material:material:1.11.0")
 
     // Testing libraries
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
-    // Google Play Services for Maps and Location
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
-    implementation("com.google.android.gms:play-services-location:21.2.0")
-    implementation("com.github.bumptech.glide:glide:4.16.0")
 }

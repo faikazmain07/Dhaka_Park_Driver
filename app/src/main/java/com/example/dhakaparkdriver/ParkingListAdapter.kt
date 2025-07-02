@@ -1,57 +1,42 @@
 package com.example.dhakaparkdriver
 
-import android.content.Context
-import android.content.Intent
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.dhakaparkdriver.databinding.ItemParkingSpotBinding
+import com.example.dhakaparkdriver.databinding.ListItemParkingSpotBinding
+import java.text.DecimalFormat
 
-// The context is passed in from the Activity to allow us to start a new activity from here.
+// ADD a click listener parameter to the constructor
 class ParkingListAdapter(
-    private val parkingSpots: List<ParkingSpot>,
-    private val context: Context
-) : RecyclerView.Adapter<ParkingListAdapter.ParkingSpotViewHolder>() {
+    private val spots: List<ParkingSpot>,
+    private val onSpotClicked: (ParkingSpot) -> Unit
+) : RecyclerView.Adapter<ParkingListAdapter.SpotViewHolder>() {
 
-    // The ViewHolder holds the views for a single list item, accessed via ViewBinding.
-    inner class ParkingSpotViewHolder(val binding: ItemParkingSpotBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class SpotViewHolder(val binding: ListItemParkingSpotBinding) : RecyclerView.ViewHolder(binding.root)
 
-    // This is called when a new ViewHolder is needed. It inflates the item layout.
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ParkingSpotViewHolder {
-        val binding = ItemParkingSpotBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ParkingSpotViewHolder(binding)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SpotViewHolder {
+        val binding = ListItemParkingSpotBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return SpotViewHolder(binding)
     }
 
-    // This returns the total number of items in the list.
-    override fun getItemCount(): Int = parkingSpots.size
+    override fun onBindViewHolder(holder: SpotViewHolder, position: Int) {
+        val spot = spots[position]
+        holder.binding.tvSpotName.text = spot.name
+        holder.binding.tvPrice.text = "${spot.pricePerHour} BDT/hr"
 
-    // This is called to display the data at a specific position.
-    override fun onBindViewHolder(holder: ParkingSpotViewHolder, position: Int) {
-        val spot = parkingSpots[position]
-
-        // Bind the data from our ParkingSpot object to the TextViews.
-        holder.binding.tvSpotName.text = spot.spotName
-        holder.binding.tvPrice.text = "${spot.pricePerHour ?: "N/A"} BDT/hr"
-
-        // Format the distance nicely to one decimal place.
         if (spot.distance != null) {
             val distanceInKm = spot.distance!! / 1000
-            holder.binding.tvDistance.text = String.format("%.1f km away", distanceInKm)
+            val df = DecimalFormat("#.##")
+            holder.binding.tvDistance.text = "${df.format(distanceInKm)} km"
         } else {
-            holder.binding.tvDistance.text = "Distance unknown"
+            holder.binding.tvDistance.text = "-- km"
         }
 
-        // --- THIS IS THE ACTIVATED CLICK LISTENER ---
+        // SET THE CLICK LISTENER ON THE ITEM VIEW
         holder.itemView.setOnClickListener {
-            // Create an Intent to open the ParkingDetailActivity.
-            val intent = Intent(context, ParkingDetailActivity::class.java)
-
-            // Pass the unique ID of the clicked parking spot to the detail activity.
-            // This is crucial for fetching the correct document from Firestore.
-            intent.putExtra("PARKING_SPOT_ID", spot.id)
-
-            // Start the new activity.
-            context.startActivity(intent)
+            onSpotClicked(spot)
         }
     }
+
+    override fun getItemCount() = spots.size
 }
