@@ -12,7 +12,20 @@
           "package_name": "com.example.dhakaparkdriver"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "576220297303-cqfar8pjr70nic1po53i05mjdoa8opot.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.dhakaparkdriver",
+            "certificate_hash": "cef2c294ca89065f09c7a4b607d0d54f246fe5f1"
+          }
+        },
+        {
+          "client_id": "576220297303-aeinupnufi40pin5t4mnfo17v387ekuf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCveHBOMu-CZu5EQpCAGqV57XTOw-UrBks"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "576220297303-aeinupnufi40pin5t4mnfo17v387ekuf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

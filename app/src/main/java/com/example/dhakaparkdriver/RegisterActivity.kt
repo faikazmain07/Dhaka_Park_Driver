@@ -2,87 +2,153 @@ package com.example.dhakaparkdriver
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.util.Patterns
 import android.view.View
-import android.widget.RadioButton
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.example.dhakaparkdriver.databinding.ActivityRegisterBinding
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
 class RegisterActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
     private lateinit var binding: ActivityRegisterBinding
-    private val db = Firebase.firestore // Reference to the Firestore database
+    private lateinit var auth: FirebaseAuth
+    private val db = Firebase.firestore
+    private var userRole: String = "driver" // Default role for safety
+
+    private lateinit var googleSignInClient: GoogleSignInClient
+
+    // Launcher for the Google Sign-In intent
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                Log.d("RegisterActivity", "Google sign-in successful. ID: ${account.id}")
+                firebaseAuthWithGoogle(account.idToken!!)
+            } catch (e: ApiException) {
+                Log.w("RegisterActivity", "Google sign in failed.", e)
+                Toast.makeText(this, "Google sign in failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Log.w("RegisterActivity", "Google sign in cancelled or failed. Result code: ${result.resultCode}")
+            Toast.makeText(this, "Google Sign-In cancelled.", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        auth = Firebase.auth
+        auth = FirebaseAuth.getInstance()
+        userRole = intent.getStringExtra("USER_ROLE") ?: "driver"
+        Log.d("RegisterActivity", "User role received: $userRole")
 
+        // Configure Google Sign In options
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        // Set up all UI click listeners
+        setupClickListeners()
+    }
+
+    private fun setupClickListeners() {
         binding.btnRegister.setOnClickListener {
-            registerUser()
+            registerWithEmail()
         }
 
         binding.tvGoToLogin.setOnClickListener {
             finish()
         }
+
+        binding.btnGoogleSignIn.setOnClickListener {
+            signInWithGoogle()
+        }
     }
 
-    private fun registerUser() {
+    private fun signInWithGoogle() {
+        Log.d("RegisterActivity", "Launching Google Sign-In flow...")
+        val signInIntent = googleSignInClient.signInIntent
+        googleSignInLauncher.launch(signInIntent)
+    }
+
+    private fun firebaseAuthWithGoogle(idToken: String) {
+        binding.progressBar.visibility = View.VISIBLE
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener(this) { task ->
+                binding.progressBar.visibility = View.GONE
+                if (task.isSuccessful) {
+                    val firebaseUser = auth.currentUser!!
+                    val isNewUser = task.result?.additionalUserInfo?.isNewUser ?: false
+
+                    if (isNewUser) {
+                        Log.d("RegisterActivity", "New user signed up with Google. Saving profile.")
+                        val nameFromGoogle = firebaseUser.displayName ?: ""
+                        val emailFromGoogle = firebaseUser.email ?: ""
+
+                        val nameToSave = if (binding.etFullName.text.toString().isNotBlank()) {
+                            binding.etFullName.text.toString().trim()
+                        } else {
+                            nameFromGoogle
+                        }
+
+                        saveUserProfile(nameToSave, emailFromGoogle)
+                    } else {
+                        Log.d("RegisterActivity", "Existing user signed in with Google. Navigating to dashboard.")
+                        // If an existing user logs in with Google, they are treated as logged in.
+                        // For unverified existing users, SplashActivity will handle routing.
+                        // For verified existing users, they go to dashboard.
+                        // No signOut needed here for existing Google users.
+                        navigateToDashboardForExistingUser()
+                    }
+                } else {
+                    Log.w("RegisterActivity", "Firebase Auth with Google failed: ${task.exception?.message}", task.exception)
+                    Toast.makeText(this, "Firebase authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+    }
+
+    private fun registerWithEmail() {
         val fullName = binding.etFullName.text.toString().trim()
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
 
-        // --- Input Validation (no changes here) ---
-        if (fullName.isEmpty()) {
-            binding.etFullName.error = "Full name is required"
-            binding.etFullName.requestFocus()
-            return
-        }
-        if (email.isEmpty()) {
-            binding.etEmail.error = "Email is required"
-            binding.etEmail.requestFocus()
-            return
-        }
-        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            binding.etEmail.error = "Please enter a valid email"
-            binding.etEmail.requestFocus()
-            return
-        }
-        if (password.isEmpty()) {
-            binding.etPassword.error = "Password is required"
-            binding.etPassword.requestFocus()
-            return
-        }
-        if (password.length < 6) {
-            binding.etPassword.error = "Password must be at least 6 characters"
-            binding.etPassword.requestFocus()
-            return
-        }
+        var isValid = true
+        if (fullName.isEmpty()) { binding.etFullName.error = "Full name is required"; isValid = false }
+        if (email.isEmpty()) { binding.etEmail.error = "Email is required"; isValid = false }
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) { binding.etEmail.error = "Enter a valid email"; isValid = false }
+        if (password.isEmpty()) { binding.etPassword.error = "Password is required"; isValid = false }
+        if (password.length < 6) { binding.etPassword.error = "Password must be at least 6 characters"; isValid = false }
+
+        if (!isValid) return
 
         binding.progressBar.visibility = View.VISIBLE
-
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
-                // The original logic to hide the progress bar has been moved
-                // inside the success/failure listeners for better accuracy.
-
                 if (task.isSuccessful) {
-                    saveUserProfile(fullName, email) // Call new function to save profile
+                    Log.d("RegisterActivity", "Email/Password registration successful. Saving profile.")
+                    saveUserProfile(fullName, email)
                 } else {
                     binding.progressBar.visibility = View.GONE
-                    Toast.makeText(
-                        baseContext,
-                        "Registration failed: ${task.exception?.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Log.w("RegisterActivity", "Email/Password registration failed: ${task.exception?.message}", task.exception)
+                    Toast.makeText(baseContext, "Registration failed: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                 }
             }
     }
@@ -90,69 +156,74 @@ class RegisterActivity : AppCompatActivity() {
     private fun saveUserProfile(fullName: String, email: String) {
         val firebaseUser = auth.currentUser
         if (firebaseUser == null) {
+            Log.e("RegisterActivity", "Attempted to save profile but FirebaseUser is null.")
             binding.progressBar.visibility = View.GONE
-            Toast.makeText(baseContext, "User not found after creation.", Toast.LENGTH_LONG).show()
+            Toast.makeText(baseContext, "User not authenticated for profile save.", Toast.LENGTH_LONG).show()
             return
         }
 
-        val selectedRoleId = binding.rgRoles.checkedRadioButtonId
-        if (selectedRoleId == -1) {
-            binding.progressBar.visibility = View.GONE
-            Toast.makeText(baseContext, "Please select a role.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val selectedRadioButton = findViewById<RadioButton>(selectedRoleId)
-        // Clean up the role name to be a single lowercase word, e.g., "parkingowner"
-        val userRole = selectedRadioButton.text.toString().lowercase().replace(" ", "")
-
-        // We add a new status to track if the profile is complete
         val userData = hashMapOf(
             "uid" to firebaseUser.uid,
             "fullName" to fullName,
             "email" to email,
             "role" to userRole,
-            "createdAt" to System.currentTimeMillis(),
-            "profileStatus" to "pending_setup" // Status indicates more info is needed
+            "createdAt" to System.currentTimeMillis()
         )
 
         db.collection("users").document(firebaseUser.uid)
             .set(userData)
             .addOnSuccessListener {
+                Log.d("RegisterActivity", "User profile successfully saved to Firestore for UID: ${firebaseUser.uid}")
                 binding.progressBar.visibility = View.GONE
-                Toast.makeText(baseContext, "Account created. Please complete your profile.", Toast.LENGTH_LONG).show()
+                Toast.makeText(baseContext, "Registration successful! Please verify your email.", Toast.LENGTH_LONG).show() // Specific message for new registrations
 
-                // --- THIS IS THE CRITICAL NEW ROUTING LOGIC ---
-                when (userRole) {
-                    "driver" -> {
-                        // If user is a driver, go to the profile setup screen
-                        val intent = Intent(this, DriverProfileSetupActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        startActivity(intent)
-                        finish()
-                    }
-                    "parkingowner", "guard" -> {
-                        // TODO: Create dashboards for Owner and Guard roles.
-                        // For now, we can show a message and maybe go to a placeholder screen or log them out.
-                        Toast.makeText(this, "Owner/Guard dashboard is not yet available.", Toast.LENGTH_LONG).show()
-                        // Let's send them to the login screen for now.
-                        val intent = Intent(this, LoginActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        startActivity(intent)
-                        finish()
-                    }
-                    else -> {
-                        // Fallback case, should not happen.
-                        Toast.makeText(this, "Unknown role. Please contact support.", Toast.LENGTH_LONG).show()
-                        val intent = Intent(this, LoginActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        startActivity(intent)
-                        finish()
-                    }
+                sendEmailVerification() // Send email verification
+
+                // --- CRITICAL CHANGE: Redirect to EmailVerificationActivity and sign out ---
+                auth.signOut() // Sign out the newly registered user (until verified)
+                val intent = Intent(this, EmailVerificationActivity::class.java).apply {
+                    // Pass email and role to the verification screen
+                    putExtra("USER_EMAIL", email)
+                    putExtra("USER_ROLE", userRole)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
+                startActivity(intent)
+                finish() // Finish RegisterActivity
             }
             .addOnFailureListener { e ->
                 binding.progressBar.visibility = View.GONE
+                Log.e("RegisterActivity", "Error saving user profile to Firestore.", e)
                 Toast.makeText(baseContext, "Error saving profile: ${e.message}", Toast.LENGTH_LONG).show()
             }
+    }
+
+    private fun sendEmailVerification() {
+        val user = auth.currentUser
+
+        if (user == null) {
+            Log.e("RegisterActivity", "sendEmailVerification: currentUser is null. Cannot send email.")
+            Toast.makeText(baseContext, "Error: User not found for verification.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Log.d("RegisterActivity", "Attempting to send verification email to: ${user.email}")
+        user.sendEmailVerification()
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    Log.d("RegisterActivity", "SUCCESS: Email verification request sent for ${user.email}")
+                } else {
+                    Log.e("RegisterActivity", "FAILURE: Failed to send verification email for ${user.email}", task.exception)
+                    Toast.makeText(baseContext, "Failed to send verification email. Reason: ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+    }
+
+    // This function is for existing Google users who are already signed in and likely verified.
+    private fun navigateToDashboardForExistingUser() {
+        Toast.makeText(this, "Welcome back!", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, DriverDashboardActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 }

@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -17,6 +19,8 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Optional: Make splash screen full-screen for a clean look
+        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         setContentView(R.layout.activity_splash)
 
         // Use a Handler to delay the screen transition slightly for a better splash experience
@@ -26,55 +30,69 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun checkUserStatus() {
-        // Check if a user is currently logged into Firebase Authentication
         val firebaseUser = auth.currentUser
 
         if (firebaseUser == null) {
-            // No user is signed in, go to the LoginActivity
-            navigateTo(LoginActivity::class.java)
+            // No user is signed in, go to RoleSelectionActivity
+            navigateTo(RoleSelectionActivity::class.java)
         } else {
-            // A user is signed in, now we need to check their role from Firestore
-            fetchUserRoleAndRedirect(firebaseUser.uid)
+            // A user is signed in. IMPORTANT: Reload to get the latest verification status.
+            firebaseUser.reload().addOnCompleteListener { reloadTask ->
+                if (reloadTask.isSuccessful) {
+                    // Check verification status AFTER reloading
+                    if (firebaseUser.isEmailVerified) {
+                        Log.d("SplashActivity", "User is logged in and email verified: ${firebaseUser.email}. Fetching role.")
+                        // If verified, proceed to fetch the role from Firestore
+                        fetchUserRoleAndRedirect(firebaseUser.uid)
+                    } else {
+                        // User is logged in, but email is NOT verified after reload
+                        Log.d("SplashActivity", "User email not verified after reload: ${firebaseUser.email}. Signing out.")
+                        Toast.makeText(this, "Please verify your email address to continue.", Toast.LENGTH_LONG).show()
+                        auth.signOut() // Sign them out
+                        navigateTo(LoginActivity::class.java) // Send them to Login screen (where they can resend email)
+                    }
+                } else {
+                    // Failed to reload user data (e.g., network issue)
+                    Log.e("SplashActivity", "Failed to reload user data on splash.", reloadTask.exception)
+                    Toast.makeText(this, "Failed to check user status. Please log in again.", Toast.LENGTH_LONG).show()
+                    auth.signOut() // Sign them out as a precaution
+                    navigateTo(LoginActivity::class.java)
+                }
+            }
         }
     }
 
     private fun fetchUserRoleAndRedirect(uid: String) {
-        // Get the user's document from the "users" collection in Firestore
         db.collection("users").document(uid).get()
             .addOnSuccessListener { document ->
-                if (document != null && document.exists()) {
-                    // Get the role field from the document
+                if (document.exists()) {
                     val role = document.getString("role")
-
-                    // Route the user based on their role
                     when (role) {
-                        "driver" -> navigateTo(DriverDashboardActivity::class.java) // <--- CORRECT: Navigates to the new dashboard
-                        "owner" -> {
-                            // TODO: Create OwnerDashboardActivity and navigate here
-                            Toast.makeText(this, "Owner Dashboard coming soon!", Toast.LENGTH_SHORT).show()
-                            // For now, owners can go to the driver dashboard as a placeholder
-                            navigateTo(DriverDashboardActivity::class.java)
-                        }
+                        "driver" -> navigateTo(DriverDashboardActivity::class.java)
+                        "owner" -> navigateTo(OwnerDashboardActivity::class.java) // <--- ADDED: Route to Owner Dashboard
                         "guard" -> {
-                            // TODO: Create GuardDashboardActivity and navigate here
+                            // We will create GuardDashboardActivity soon
                             Toast.makeText(this, "Guard Dashboard coming soon!", Toast.LENGTH_SHORT).show()
-                            navigateTo(DriverDashboardActivity::class.java)
+                            navigateTo(DriverDashboardActivity::class.java) // Temporary placeholder
                         }
                         else -> {
-                            // Role is unknown or not set, send to login
-                            Toast.makeText(this, "User role not found. Please log in again.", Toast.LENGTH_SHORT).show()
+                            Log.w("SplashActivity", "User role not found or invalid: $role. UID: $uid")
+                            Toast.makeText(this, "User role not set. Please log in again.", Toast.LENGTH_SHORT).show()
+                            auth.signOut()
                             navigateTo(LoginActivity::class.java)
                         }
                     }
                 } else {
-                    // Document doesn't exist, which is strange. Send to login.
-                    Toast.makeText(this, "User profile not found. Please log in again.", Toast.LENGTH_SHORT).show()
+                    Log.w("SplashActivity", "User profile document not found for UID: $uid")
+                    Toast.makeText(this, "User profile missing. Please log in again.", Toast.LENGTH_SHORT).show()
+                    auth.signOut()
                     navigateTo(LoginActivity::class.java)
                 }
             }
-            .addOnFailureListener {
-                // Failed to fetch from Firestore, send to login as a fallback
-                Toast.makeText(this, "Failed to get user role. Please log in again.", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener { exception ->
+                Log.e("SplashActivity", "Failed to fetch user role from Firestore for UID: $uid", exception)
+                Toast.makeText(this, "Failed to get user role. Please log in again.", Toast.LENGTH_LONG).show()
+                auth.signOut()
                 navigateTo(LoginActivity::class.java)
             }
     }
