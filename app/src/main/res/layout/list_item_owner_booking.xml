@@ -16,78 +16,90 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- Spot Name -->
         <TextView
-            android:id="@+id/tvSpotName"
+            android:id="@+id/tvDriverEmail"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:text="Gulshan Central Parking"
+            tools:text="driver@example.com"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@+id/tvDistance"
+            app:layout_constraintEnd_toStartOf="@+id/tvBookingStatus"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Distance (top right) -->
         <TextView
-            android:id="@+id/tvDistance"
+            android:id="@+id/tvBookingStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Lat: 23.7838, Lng: 90.3888"
+            tools:text="Active"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
             android:textStyle="bold"
+            android:textColor="?attr/colorPrimary"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Available Slots -->
         <TextView
-            android:id="@+id/tvAvailableSlots"
+            android:id="@+id/tvIntendedTime"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Available: 10/12"
+            android:layout_marginEnd="8dp"
+            tools:text="Intended: 09:00 AM - 10:00 AM"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvSpotName" />
+            app:layout_constraintTop_toBottomOf="@id/tvDriverEmail" />
 
-        <!-- Price per Hour -->
         <TextView
-            android:id="@+id/tvPrice"
+            android:id="@+id/tvActualTime"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="8dp"
+            tools:text="Actual: 09:05 AM - Ongoing"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvIntendedTime" />
+
+        <TextView
+            android:id="@+id/tvTotalPrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="50 BDT/hr"
+            tools:text="Total: 200 BDT"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvAvailableSlots" />
+            app:layout_constraintTop_toBottomOf="@id/tvActualTime" />
 
-        <!-- Operating Hours -->
-        <TextView
-            android:id="@+id/tvOperatingHours"
-            android:layout_width="0dp"
+        <ImageView
+            android:id="@+id/ivEditBooking"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_edit"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvActualTime"
+            app:tint="?attr/colorPrimary"
+            tools:ignore="ContentDescription" />
+
+        <ImageView
+            android:id="@+id/ivDeleteBooking"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:layout_marginTop="4dp"
-            android:text="8:00 AM - 10:00 PM"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/tvPrice"
-            app:layout_constraintTop_toBottomOf="@id/tvAvailableSlots" />
-
-        <!-- Parking Type and Vehicle Types -->
-        <TextView
-            android:id="@+id/tvParkingTypeAndVehicles"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Covered | Car, Bike"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-            android:textStyle="italic"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvPrice" />
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_delete"
+            app:layout_constraintEnd_toStartOf="@+id/ivEditBooking"
+            app:layout_constraintTop_toBottomOf="@id/tvActualTime"
+            app:tint="@android:color/holo_red_dark"
+            tools:ignore="ContentDescription" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -5,12 +5,13 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.WindowManager
+import android.view.WindowManager // <--- ADD THIS IMPORT
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import android.net.Uri
 
 class SplashActivity : AppCompatActivity() {
 
@@ -19,43 +20,82 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Optional: Make splash screen full-screen for a clean look
+        // Make the splash screen full-screen for a cleaner look
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         setContentView(R.layout.activity_splash)
 
-        // Use a Handler to delay the screen transition slightly for a better splash experience
+        // Check for incoming email verification link immediately
+        if (intent != null && intent.data != null) {
+            val link = intent.data.toString()
+            Log.d("SplashActivity", "Incoming Deep Link: $link")
+
+            if (auth.isSignInWithEmailLink(link)) {
+                handleEmailLinkSignIn(link)
+                return
+            }
+        }
+
+        // Normal splash screen delay, then proceed with status check if no deep link
         Handler(Looper.getMainLooper()).postDelayed({
             checkUserStatus()
-        }, 1500) // 1.5 second delay
+        }, 1500)
+    }
+
+    private fun handleEmailLinkSignIn(emailLink: String) {
+        val uri = Uri.parse(emailLink)
+        val oobCode = uri.getQueryParameter("oobCode")
+        val email = uri.getQueryParameter("email")
+
+        if (oobCode == null) {
+            Log.e("SplashActivity", "Email link missing oobCode parameter. Cannot verify.")
+            Toast.makeText(this, "Verification link invalid. Please resend.", Toast.LENGTH_LONG).show()
+            navigateTo(LoginActivity::class.java)
+            return
+        }
+
+        if (email.isNullOrEmpty()) {
+            Log.e("SplashActivity", "Email not found in deep link. Cannot complete sign-in with link.")
+            Toast.makeText(this, "Please go to Login and try logging in with your email.", Toast.LENGTH_LONG).show()
+            navigateTo(LoginActivity::class.java)
+            return
+        }
+
+        auth.signInWithEmailLink(email, emailLink)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    Log.d("SplashActivity", "Email link sign-in successful: ${task.result?.user?.email}")
+                    Toast.makeText(this, "Email verified and logged in!", Toast.LENGTH_LONG).show()
+                    fetchUserRoleAndRedirect(task.result?.user?.uid!!)
+                } else {
+                    Log.e("SplashActivity", "Error signing in with email link.", task.exception)
+                    Toast.makeText(this, "Failed to sign in via link. Please try logging in normally.", Toast.LENGTH_LONG).show()
+                    auth.signOut()
+                    navigateTo(LoginActivity::class.java)
+                }
+            }
     }
 
     private fun checkUserStatus() {
         val firebaseUser = auth.currentUser
 
         if (firebaseUser == null) {
-            // No user is signed in, go to RoleSelectionActivity
             navigateTo(RoleSelectionActivity::class.java)
         } else {
-            // A user is signed in. IMPORTANT: Reload to get the latest verification status.
             firebaseUser.reload().addOnCompleteListener { reloadTask ->
                 if (reloadTask.isSuccessful) {
-                    // Check verification status AFTER reloading
                     if (firebaseUser.isEmailVerified) {
                         Log.d("SplashActivity", "User is logged in and email verified: ${firebaseUser.email}. Fetching role.")
-                        // If verified, proceed to fetch the role from Firestore
                         fetchUserRoleAndRedirect(firebaseUser.uid)
                     } else {
-                        // User is logged in, but email is NOT verified after reload
                         Log.d("SplashActivity", "User email not verified after reload: ${firebaseUser.email}. Signing out.")
                         Toast.makeText(this, "Please verify your email address to continue.", Toast.LENGTH_LONG).show()
-                        auth.signOut() // Sign them out
-                        navigateTo(LoginActivity::class.java) // Send them to Login screen (where they can resend email)
+                        auth.signOut()
+                        navigateTo(LoginActivity::class.java)
                     }
                 } else {
-                    // Failed to reload user data (e.g., network issue)
                     Log.e("SplashActivity", "Failed to reload user data on splash.", reloadTask.exception)
                     Toast.makeText(this, "Failed to check user status. Please log in again.", Toast.LENGTH_LONG).show()
-                    auth.signOut() // Sign them out as a precaution
+                    auth.signOut()
                     navigateTo(LoginActivity::class.java)
                 }
             }
@@ -69,12 +109,8 @@ class SplashActivity : AppCompatActivity() {
                     val role = document.getString("role")
                     when (role) {
                         "driver" -> navigateTo(DriverDashboardActivity::class.java)
-                        "owner" -> navigateTo(OwnerDashboardActivity::class.java) // <--- ADDED: Route to Owner Dashboard
-                        "guard" -> {
-                            // We will create GuardDashboardActivity soon
-                            Toast.makeText(this, "Guard Dashboard coming soon!", Toast.LENGTH_SHORT).show()
-                            navigateTo(DriverDashboardActivity::class.java) // Temporary placeholder
-                        }
+                        "owner" -> navigateTo(OwnerDashboardActivity::class.java)
+                        "guard" -> navigateTo(GuardDashboardActivity::class.java)
                         else -> {
                             Log.w("SplashActivity", "User role not found or invalid: $role. UID: $uid")
                             Toast.makeText(this, "User role not set. Please log in again.", Toast.LENGTH_SHORT).show()
@@ -97,11 +133,10 @@ class SplashActivity : AppCompatActivity() {
             }
     }
 
-    // Helper function to make navigation cleaner
     private fun navigateTo(activityClass: Class<*>) {
         val intent = Intent(this, activityClass)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
-        finish() // Finish SplashActivity so it's removed from the back stack
+        finish()
     }
 }

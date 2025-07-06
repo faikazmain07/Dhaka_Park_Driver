@@ -5,8 +5,10 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.dhakaparkdriver.databinding.ListItemParkingSpotBinding
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-// ADD a click listener parameter to the constructor
 class ParkingListAdapter(
     private val spots: List<ParkingSpot>,
     private val onSpotClicked: (ParkingSpot) -> Unit
@@ -24,6 +26,21 @@ class ParkingListAdapter(
         holder.binding.tvSpotName.text = spot.name
         holder.binding.tvPrice.text = "${spot.pricePerHour} BDT/hr"
 
+        // Display available slots
+        holder.binding.tvAvailableSlots.text = "Available: ${spot.availableSlots}/${spot.totalSlots}"
+
+        // Display operating hours
+        val formattedHours = if (spot.operatingHoursStartMillis != 0L && spot.operatingHoursEndMillis != 0L) {
+            val start = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(spot.operatingHoursStartMillis))
+            val end = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(spot.operatingHoursEndMillis))
+            "$start - $end"
+        } else "N/A"
+        holder.binding.tvOperatingHours.text = formattedHours // Assuming you have tvOperatingHours in list_item_parking_spot.xml
+
+        // Display parking type and vehicle types
+        holder.binding.tvParkingTypeAndVehicles.text = "${spot.parkingType.capitalize(Locale.getDefault())} | ${spot.vehicleTypes.joinToString(", ").capitalize(Locale.getDefault())}" // Assuming you have tvParkingTypeAndVehicles in list_item_parking_spot.xml
+
+        // Display distance
         if (spot.distance != null) {
             val distanceInKm = spot.distance!! / 1000
             val df = DecimalFormat("#.##")
@@ -32,7 +49,6 @@ class ParkingListAdapter(
             holder.binding.tvDistance.text = "-- km"
         }
 
-        // SET THE CLICK LISTENER ON THE ITEM VIEW
         holder.itemView.setOnClickListener {
             onSpotClicked(spot)
         }

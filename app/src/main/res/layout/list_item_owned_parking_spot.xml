@@ -21,37 +21,63 @@
             android:id="@+id/tvSpotName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
             android:text="Gulshan Central Parking"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp"
-            app:layout_constraintEnd_toStartOf="@+id/tvAvailableSlots"
+            app:layout_constraintEnd_toStartOf="@+id/tvDistance"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" /> <!-- FIXED: Added the "/" to close the tag properly -->
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Available Slots (aligned to right) -->
+        <!-- Distance (top right) -->
         <TextView
-            android:id="@+id/tvAvailableSlots"
+            android:id="@+id/tvDistance"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Available: 10/12"
+            android:text="1.2 km"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Address (below spot name, spanning full width) -->
+        <!-- Available Slots -->
         <TextView
-            android:id="@+id/tvAddress"
+            android:id="@+id/tvAvailableSlots"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Lat: 23.7838, Lng: 90.3888"
+            android:text="Available: 10/12"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvSpotName" />
 
-        <!-- Price and Hours (below address, spanning full width if needed) -->
+        <!-- Price per Hour -->
+        <TextView
+            android:id="@+id/tvPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="50 BDT/hr"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvAvailableSlots" />
+
+        <!-- Operating Hours -->
+        <TextView
+            android:id="@+id/tvOperatingHours"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="4dp"
+            android:text="8:00 AM - 10:00 PM"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tvPrice"
+            app:layout_constraintTop_toBottomOf="@id/tvAvailableSlots" />
+
+        <!-- NEW: PriceHours (This one was missing based on your code and previous fix) -->
+        <!-- This TextView will display both price and hours, allowing tvPrice to be just price -->
         <TextView
             android:id="@+id/tvPriceHours"
             android:layout_width="0dp"
@@ -61,7 +87,35 @@
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvAddress" />
+            app:layout_constraintTop_toBottomOf="@id/tvOperatingHours"
+            android:visibility="gone" tools:visibility="visible"/> <!-- Initially hidden as we combine with OperatingHours -->
+
+        <!-- Parking Type and Vehicle Types -->
+        <TextView
+            android:id="@+id/tvParkingTypeAndVehicles"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Covered | Car, Bike"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            android:textStyle="italic"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvPriceHours" /> <!-- Updated constraint to be below tvPriceHours -->
+
+
+        <!-- Address (below tvSpotName, to take its place from earlier version if needed) -->
+        <TextView
+            android:id="@+id/tvAddress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Lat: 23.7838, Lng: 90.3888"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvParkingTypeAndVehicles" /> <!-- Updated constraint -->
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -1,3 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Dhaka Park Driver</string>
+    <!-- Your Google Maps API Key - PASTE YOUR KEY HERE -->
+    <string name="google_maps_api_key" translatable="false">AIzaSyDQslEPvruqAKTCnjh2W3Vmj81Kk6ExKOA</string>
+
+    <!-- Other hardcoded strings that Android Studio might suggest moving here -->
+    <string name="welcome_back">Welcome Back</string>
+    <string name="sign_in_to_continue">Sign in to continue</string>
+    <string name="email_address">Email Address</string>
+    <string name="password">Password</string>
+    <string name="sign_in">Sign In</string>
+    <string name="don_t_have_an_account_register_now">Don\'t have an account? Register Now</string>
+    <string name="resend_verification_email">Resend Verification Email</string>
+    <string name="create_account">Create Account</string>
+    <string name="join_the_dhaka_park_network">Join the Dhaka Park network</string>
+    <string name="full_name">Full Name</string>
+    <string name="register_with_email">Register with Email</string>
+    <string name="or">OR</string>
+    <string name="already_have_an_account_sign_in">Already have an account? Sign In</string>
+    <string name="who_are_you">Who are you?</string>
+    <string name="i_m_a_parking_owner">I\'m a Parking Owner</string>
+    <string name="i_m_a_driver">I\'m a Driver</string>
+    <string name="i_m_a_parking_guard">I\'m a Parking Guard</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="forgot_password_title">Forgot Password?</string>
+    <string name="forgot_password_message">Enter your email address to receive a password reset link.</string>
+    <string name="reset_password">Reset Password</string>
+    <string name="verify_your_email_address">Verify Your Email Address</string>
+    <string name="email_verification_message">A verification email has been sent to your inbox. Please click the link in the email to activate your account.</string>
+    <string name="i_ve_verified_my_email">I\'ve Verified My Email</string>
+    <string name="go_to_login">Go to Login</string>
+    <string name="add_new_parking_spot">Add New Parking Spot</string>
+    <string name="parking_spot_name">Parking Spot Name</string>
+    <string name="total_slots">Total Slots</string>
+    <string name="price_per_hour_bdt">Price Per Hour (BDT)</string>
+    <string name="parking_type">Parking Type:</string>
+    <string name="covered">Covered</string>
+    <string name="open">Open</string>
+    <string name="emergency_contact_optional">Emergency Contact (Optional)</string>
+    <string name="vehicle_type_support">Vehicle Type Support:</string>
+    <string name="car">Car</string>
+    <string name="bike">Bike</string>
+    <string name="truck">Truck</string>
+    <string name="operating_hours">Operating Hours:</string>
+    <string name="start_time">Start Time</string>
+    <string name="end_time">End Time</string>
+    <string name="parking_spot_photo_optional">Parking Spot Photo (Optional):</string>
+    <string name="select_photo">Select Photo</string>
+    <string name="address_location_on_map">Address / Location on Map:</string>
+    <string name="search_address_or_area">Search Address or Area</string>
+    <string name="no_location_selected">No location selected</string>
+    <string name="add_parking_spot">Add Parking Spot</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="welcome_owner">Welcome, Owner!</string>
+    <string name="today_s_earnings">Today\'s Earnings</string>
+    <string name="current_occupancy">Current Occupancy</string>
+    <string name="manage_your_space">Manage Your Space</string>
+    <string name="your_parking_spots">Your Parking Spots</string>
+    <string name="bookings_and_slot_management">Bookings and Slot Management</string>
+    <string name="revenue_and_payments">Revenue and Payments</string>
+    <string name="account">Account</string>
+    <string name="notifications_and_support">Notifications and Support</string>
+    <string name="profile_and_settings">Profile and Settings</string>
+    <string name="logout">Logout</string>
+    <string name="nearby_parking_spots">Nearby Parking Spots</string>
+    <string name="booking_confirmed">Booking Confirmed!</string>
+    <string name="show_this_qr_code_to_the_parking_guard_upon_arrival">Show this QR code to the parking guard upon arrival.</string>
+    <string name="done">Done</string>
+    <string name="booking_details">Booking Details</string>
+    <string name="status">Status:</string>
+    <string name="spot_name">Spot Name:</string>
+    <string name="driver">Driver:</string>
+    <string name="intended_time">Intended Time:</string>
+    <string name="actual_start">Actual Start:</string>
+    <string name="actual_end">Actual End:</string>
+    <string name="total_price">Total Price:</string>
+    <string name="start_session">Start Session</string>
+    <string name="end_session">End Session</string>
+    <string name="scan_driver_qr_code">Scan Driver QR Code</string>
+    <string name="welcome_guard">Welcome, Guard!</string>
+    <string name="dhaka_parking">DHAKA PARKING</string>
+    <string name="find_your_space">Find Your Space</string>
 </resources>

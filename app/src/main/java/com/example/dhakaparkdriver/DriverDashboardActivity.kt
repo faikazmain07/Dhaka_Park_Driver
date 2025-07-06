@@ -8,9 +8,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -22,8 +22,13 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -32,11 +37,12 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val db = Firebase.firestore
     private val markerMap = HashMap<Marker, ParkingSpot>()
+    private val auth = FirebaseAuth.getInstance()
 
     private lateinit var parkingListAdapter: ParkingListAdapter
     private val parkingSpotList = mutableListOf<ParkingSpot>()
 
-    private val locationPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+    private val locationPermissionRequest = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
             showUserLocation()
         } else {
@@ -47,6 +53,10 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val myCurrentTimeInMs = System.currentTimeMillis()
+        Log.d("CurrentTimestamp", "Current Timestamp for Testing: $myCurrentTimeInMs")
+
         binding = ActivityDriverDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -55,6 +65,13 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment_container) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        setupClickListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkLocationPermission()
     }
 
     private fun setupRecyclerView() {
@@ -67,10 +84,7 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-        // Set the custom info window adapter to show details on marker tap
         mMap.setInfoWindowAdapter(CustomInfoWindowAdapter(this))
-
-        // Set the listener for when a user clicks on the info window itself
         mMap.setOnInfoWindowClickListener { marker ->
             val spot = markerMap[marker]
             if (spot != null) {
@@ -78,6 +92,17 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
         checkLocationPermission()
+    }
+
+    private fun setupClickListeners() {
+        binding.btnDriverLogout.setOnClickListener {
+            auth.signOut()
+            val intent = Intent(this, LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+            finish()
+        }
     }
 
     private fun checkLocationPermission() {
@@ -110,13 +135,27 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
                     val locationData = document.getGeoPoint("location")
                     val availableSlots = document.getLong("availableSlots") ?: 0
                     val price = document.getLong("pricePerHour") ?: 0
-                    val operatingHours = document.getString("operatingHours") ?: "N/A"
+                    val operatingHoursStartMillis = document.getLong("operatingHoursStartMillis") ?: 0 // NEW
+                    val operatingHoursEndMillis = document.getLong("operatingHoursEndMillis") ?: 0   // NEW
+                    val parkingType = document.getString("parkingType") ?: "N/A"                    // NEW
+                    val emergencyContact = document.getString("emergencyContact") ?: "N/A"          // NEW
+                    val vehicleTypes = document.get("vehicleTypes") as? List<String> ?: listOf()   // NEW
+                    val photoUrl = document.getString("photoUrl")                                   // NEW
+                    val totalSlots = document.getLong("totalSlots") ?: 0
 
                     val parkingSpot = ParkingSpot(
                         id = document.id,
                         name = name,
                         availableSlots = availableSlots,
-                        pricePerHour = price
+                        pricePerHour = price,
+                        totalSlots = totalSlots,
+                        operatingHoursStartMillis = operatingHoursStartMillis,
+                        operatingHoursEndMillis = operatingHoursEndMillis,
+                        parkingType = parkingType,
+                        emergencyContact = emergencyContact,
+                        vehicleTypes = vehicleTypes,
+                        photoUrl = photoUrl,
+                        location = locationData
                     )
 
                     if (userLocation != null && locationData != null) {
@@ -130,7 +169,17 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     if (locationData != null) {
                         val spotLatLng = LatLng(locationData.latitude, locationData.longitude)
-                        val snippet = "Available: $availableSlots | ${price} BDT/hr\nTap to book now!" // Simple snippet for the info window
+                        // Updated snippet for more details
+                        val formattedHours = if (operatingHoursStartMillis != 0L && operatingHoursEndMillis != 0L) {
+                            val start = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursStartMillis))
+                            val end = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursEndMillis))
+                            "$start - $end"
+                        } else "N/A"
+
+                        val snippet = "Available: $availableSlots/$totalSlots | ${price} BDT/hr\n" +
+                                "Hours: $formattedHours | Type: $parkingType\n" +
+                                "Supported: ${vehicleTypes.joinToString(", ")}\n" +
+                                "Tap to book!"
 
                         val marker = mMap.addMarker(
                             MarkerOptions()
@@ -148,11 +197,13 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
                 parkingSpotList.sortBy { it.distance }
                 parkingListAdapter.notifyDataSetChanged()
                 binding.progressBar.visibility = View.GONE
+
                 zoomCameraToFit(userLocation)
             }
             .addOnFailureListener { exception ->
                 binding.progressBar.visibility = View.GONE
                 Toast.makeText(this, "Error getting parking spots: ${exception.message}", Toast.LENGTH_SHORT).show()
+                Log.e("DriverDashboard", "Error fetching spots", exception)
             }
     }
 
@@ -162,6 +213,10 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
             putExtra("SPOT_NAME", spot.name)
             putExtra("SPOT_PRICE_PER_HOUR", spot.pricePerHour)
             putExtra("SPOT_AVAILABLE_SLOTS", spot.availableSlots)
+            putExtra("SPOT_TOTAL_SLOTS", spot.totalSlots)
+            // NEW: Pass new spot details for display in BookingActivity if needed
+            putExtra("SPOT_PARKING_TYPE", spot.parkingType)
+            putExtra("SPOT_VEHICLE_TYPES", ArrayList(spot.vehicleTypes)) // Pass as ArrayList
         }
         startActivity(intent)
     }
@@ -173,13 +228,23 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         markerMap.keys.forEach { marker ->
             boundsBuilder.include(marker.position)
         }
+
         if (userLocation != null) {
             boundsBuilder.include(LatLng(userLocation.latitude, userLocation.longitude))
         }
 
         if (markerMap.isNotEmpty() || userLocation != null) {
-            val bounds = boundsBuilder.build()
-            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150))
+            try {
+                val bounds = boundsBuilder.build()
+                mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150))
+            } catch (e: IllegalStateException) {
+                Log.e("DriverDashboard", "Error building LatLngBounds (likely single point)", e)
+                if (userLocation != null) {
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(userLocation.latitude, userLocation.longitude), 15f))
+                } else if (markerMap.isNotEmpty()) {
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(markerMap.keys.first().position, 15f))
+                }
+            }
         }
     }
 

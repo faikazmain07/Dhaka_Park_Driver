@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "576220297303-cqfar8pjr70nic1po53i05mjdoa8opot.apps.googleusercontent.com",
+          "client_id": "576220297303-mb542tqrnc5uph70m8kse9sj1gbau3c8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.dhakaparkdriver",
-            "certificate_hash": "cef2c294ca89065f09c7a4b607d0d54f246fe5f1"
+            "certificate_hash": "5290cd2eada9ee6b840b4184c78fae628ac6e0a6"
           }
         },
         {

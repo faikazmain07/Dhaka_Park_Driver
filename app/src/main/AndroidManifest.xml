@@ -2,9 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Permissions required for internet, location (coarse and fine), and camera. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Permissions for reading/writing external storage (needed for photo selection/upload) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
+    <!-- Feature declaration for Camera hardware (required="false" as it's optional for some roles) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -16,47 +25,49 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DhakaParkDriver"
         tools:targetApi="31">
-        <activity
-            android:name=".AddParkingSpotActivity"
-            android:exported="false" />
 
+        <!-- Google Maps API key meta-data -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="${MAPS_API_KEY}" /> <!-- LAUNCHER ACTIVITY -->
+            android:value="@string/google_maps_api_key" />
+
+        <!-- LAUNCHER ACTIVITY -->
         <activity
             android:name=".SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity> <!-- AUTHENTICATION FLOW ACTIVITIES -->
+        </activity>
+
+        <!-- AUTHENTICATION FLOW ACTIVITIES -->
+        <activity android:name=".RoleSelectionActivity" android:exported="false" />
+        <activity android:name=".LoginActivity" android:exported="false" />
+        <activity android:name=".RegisterActivity" android:exported="false" />
+        <activity android:name=".EmailVerificationActivity" android:exported="false" />
+        <activity android:name=".ForgotPasswordActivity" android:exported="false" />
+
+        <!-- MAIN DASHBOARD & FEATURES ACTIVITIES -->
+        <activity android:name=".DriverDashboardActivity" android:exported="false" />
+        <activity android:name=".OwnerDashboardActivity" android:exported="false" />
+        <activity android:name=".GuardDashboardActivity" android:exported="false" />
+
+        <!-- BOOKING & SPOT MANAGEMENT ACTIVITIES -->
+        <activity android:name=".AddParkingSpotActivity" android:exported="false" />
+        <activity android:name=".BookingActivity" android:exported="false" />
+        <activity android:name=".BookingSuccessActivity" android:exported="false" />
+        <activity android:name=".GuardBookingDetailActivity" android:exported="false" />
+        <activity android:name=".OwnerBookingManagementActivity" android:exported="false" />
+        <activity android:name=".OwnerBookingDetailActivity" android:exported="false" /> <!-- <- ADDED THIS DECLARATION -->
+
+        <!-- This activity is required by zxing-android-embedded for the QR scanner UI -->
         <activity
-            android:name=".RoleSelectionActivity"
-            android:exported="false" />
-        <activity
-            android:name=".LoginActivity"
-            android:exported="false" />
-        <activity
-            android:name=".RegisterActivity"
-            android:exported="false" />
-        <activity
-            android:name=".EmailVerificationActivity"
-            android:exported="false" /> <!-- MAIN DASHBOARD & FEATURES ACTIVITIES -->
-        <activity
-            android:name=".DriverDashboardActivity"
-            android:exported="false" />
-        <activity
-            android:name=".OwnerDashboardActivity"
-            android:exported="false" /> <!-- <- ADDED THIS DECLARATION -->
-        <activity
-            android:name=".BookingActivity"
-            android:exported="false" />
-        <activity
-            android:name=".BookingSuccessActivity"
-            android:exported="false" />
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            android:stateNotNeeded="true"
+            android:theme="@style/zxing_CaptureTheme"
+            tools:replace="android:screenOrientation" />
 
     </application>
-
 </manifest>

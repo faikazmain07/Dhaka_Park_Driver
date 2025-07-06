@@ -79,45 +79,223 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Covered/Open Selection -->
+        <TextView
+            android:id="@+id/tvCoveredOpenLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Parking Type:"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tilPricePerHour" />
+
+        <RadioGroup
+            android:id="@+id/rgCoveredOpen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvCoveredOpenLabel">
+
+            <RadioButton
+                android:id="@+id/rbCovered"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:checked="true"
+                android:text="Covered" />
+
+            <RadioButton
+                android:id="@+id/rbOpen"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Open" />
+        </RadioGroup>
+
+        <!-- Emergency Contact -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilOperatingHours"
+            android:id="@+id/tilEmergencyContact"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:hint="Operating Hours (e.g., 8:00 AM - 10:00 PM)"
+            android:hint="Emergency Contact (Optional)"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tilPricePerHour">
+            app:layout_constraintTop_toBottomOf="@id/rgCoveredOpen">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etOperatingHours"
+                android:id="@+id/etEmergencyContact"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textCapWords" />
+                android:inputType="phone" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Vehicle Type Support -->
         <TextView
-            android:id="@+id/tvLocationLabel"
+            android:id="@+id/tvVehicleTypeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Vehicle Type Support:"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tilEmergencyContact" />
+
+        <LinearLayout
+            android:id="@+id/llVehicleTypes"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvVehicleTypeLabel">
+
+            <CheckBox
+                android:id="@+id/cbCar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Car" />
+
+            <CheckBox
+                android:id="@+id/cbBike"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Bike" />
+
+            <CheckBox
+                android:id="@+id/cbTruck"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Truck" />
+        </LinearLayout>
+
+        <!-- Operating Hours (using TextViews with clock icons) -->
+        <TextView
+            android:id="@+id/tvOperatingHoursLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Operating Hours:"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/llVehicleTypes" />
+
+        <TextView
+            android:id="@+id/tvOperatingHoursStart"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/editTextBackground"
+            android:drawableEnd="@drawable/ic_time"
+            android:gravity="center_vertical"
+            android:padding="16dp"
+            android:text="Start Time"
+            android:textSize="18sp"
+            app:layout_constraintEnd_toStartOf="@+id/tvOperatingHoursEnd"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvOperatingHoursLabel" />
+
+        <TextView
+            android:id="@+id/tvOperatingHoursEnd"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:background="?attr/editTextBackground"
+            android:drawableEnd="@drawable/ic_time"
+            android:gravity="center_vertical"
+            android:padding="16dp"
+            android:text="End Time"
+            android:textSize="18sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tvOperatingHoursStart"
+            app:layout_constraintTop_toBottomOf="@id/tvOperatingHoursLabel" />
+
+        <!-- Photo Upload -->
+        <TextView
+            android:id="@+id/tvPhotoUploadLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Location on Map (Tap to Set)"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
+            android:text="Parking Spot Photo (Optional):"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tilOperatingHours" />
+            app:layout_constraintTop_toBottomOf="@id/tvOperatingHoursEnd" />
 
-        <!-- A placeholder for the map to select location -->
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/map_selector"
-            android:name="com.google.android.gms.maps.SupportMapFragment"
+        <ImageView
+            android:id="@+id/ivSpotPhotoPreview"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:layout_marginTop="8dp"
+            android:background="#EEEEEE"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_image_placeholder"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvPhotoUploadLabel" />
+
+        <Button
+            android:id="@+id/btnSelectPhoto"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Select Photo"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ivSpotPhotoPreview" />
+
+        <!-- Address Search Input -->
+        <TextView
+            android:id="@+id/tvAddressLocationLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Address / Location on Map:"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btnSelectPhoto" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilAddressSearch"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Search Address or Area"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_search"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvAddressLocationLabel">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etAddressSearch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPostalAddress" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Map Selector -->
+        <FrameLayout
+            android:id="@+id/map_frame_container"
             android:layout_width="0dp"
             android:layout_height="200dp"
             android:layout_marginTop="16dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvLocationLabel" />
+            app:layout_constraintTop_toBottomOf="@id/tilAddressSearch"
+            android:background="#DDDDDD" />
 
         <TextView
             android:id="@+id/tvSelectedLocation"
@@ -129,7 +307,7 @@
             android:textStyle="italic"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/map_selector" />
+            app:layout_constraintTop_toBottomOf="@id/map_frame_container" />
 
         <Button
             android:id="@+id/btnAddSpot"
@@ -142,6 +320,19 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvSelectedLocation" />
+
+        <!-- NEW: ProgressBar -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

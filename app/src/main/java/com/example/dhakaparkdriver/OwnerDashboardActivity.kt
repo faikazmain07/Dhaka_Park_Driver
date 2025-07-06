@@ -24,8 +24,8 @@ class OwnerDashboardActivity : AppCompatActivity() {
     private lateinit var ownedParkingSpotsAdapter: OwnedParkingSpotAdapter
     private val ownedParkingSpotsList = mutableListOf<ParkingSpot>()
 
-    // Keep track of total slots for occupancy calculation
-    private var totalOwnerSlots = 0L
+    private var totalOwnerSlots = 0L // Keep track of total slots for occupancy calculation
+    private var occupiedOwnerSlots = 0L // Keep track of currently occupied slots
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,13 +39,22 @@ class OwnerDashboardActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh all data whenever the activity comes to foreground
-        fetchOwnedParkingSpots()
-        calculateAndDisplaySummaryData()
+        Log.d("OwnerDashboard", "OwnerDashboardActivity onResume - Refreshing data.")
+        fetchOwnedParkingSpots() // This will also trigger summary data calculation
     }
 
     private fun setupRecyclerView() {
-        ownedParkingSpotsAdapter = OwnedParkingSpotAdapter(ownedParkingSpotsList)
+        // We'll pass a click listener to the adapter (for future detail/edit)
+        ownedParkingSpotsAdapter = OwnedParkingSpotAdapter(ownedParkingSpotsList) { spot ->
+            // TODO: In a future step, navigate to a detailed view for this specific parking spot
+            Toast.makeText(this, "Managing spot: ${spot.name}", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, OwnerBookingManagementActivity::class.java).apply {
+                putExtra("SELECTED_SPOT_ID", spot.id) // Pass the selected spot's ID
+                putExtra("SELECTED_SPOT_NAME", spot.name) // Pass the selected spot's name
+                // Add any other spot data needed for OwnerBookingDetailActivity
+            }
+            startActivity(intent)
+        }
         binding.rvOwnedParkingSpots.layoutManager = LinearLayoutManager(this)
         binding.rvOwnedParkingSpots.adapter = ownedParkingSpotsAdapter
     }
@@ -58,21 +67,30 @@ class OwnerDashboardActivity : AppCompatActivity() {
                     if (document.exists()) {
                         val fullName = document.getString("fullName") ?: "Owner"
                         binding.tvOwnerName.text = fullName
+                        Log.d("OwnerDashboard", "Fetched owner name: $fullName")
                     } else {
                         binding.tvOwnerName.text = "Owner (Profile Missing)"
+                        Log.w("OwnerDashboard", "Owner profile document not found for UID: ${currentUser.uid}")
                     }
                 }
                 .addOnFailureListener {
                     binding.tvOwnerName.text = "Owner (Error fetching name)"
+                    Log.e("OwnerDashboard", "Error fetching owner name", it)
                 }
         } else {
             binding.tvOwnerName.text = "Owner (Not Logged In)"
+            Log.w("OwnerDashboard", "No current user for owner name display.")
         }
     }
 
     private fun setupClickListeners() {
         binding.btnAddParkingSpot.setOnClickListener {
             val intent = Intent(this, AddParkingSpotActivity::class.java)
+            startActivity(intent)
+        }
+
+        binding.btnBookingsManagement.setOnClickListener {
+            val intent = Intent(this, OwnerBookingManagementActivity::class.java)
             startActivity(intent)
         }
 
@@ -84,35 +102,48 @@ class OwnerDashboardActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         }
-        // TODO: Add listeners for btnBookingsManagement, btnRevenuePayments, etc.
+        // TODO: Add listeners for btnRevenuePayments, etc.
     }
 
     private fun fetchOwnedParkingSpots() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            Log.w("OwnerDashboard", "No current user to fetch owned spots.")
+            Log.w("OwnerDashboard", "No current user to fetch owned spots. Clearing lists.")
             ownedParkingSpotsList.clear()
             ownedParkingSpotsAdapter.notifyDataSetChanged()
+            binding.tvCurrentOccupancy.text = "0%"
+            binding.tvTodayEarnings.text = "0.00 BDT"
             return
         }
 
+        Log.d("OwnerDashboard", "Fetching parking spots for owner: ${currentUser.uid}")
         db.collection("parking_spots")
             .whereEqualTo("ownerId", currentUser.uid)
             .get()
             .addOnSuccessListener { documents ->
                 ownedParkingSpotsList.clear()
-                totalOwnerSlots = 0 // Reset total slots
+                totalOwnerSlots = 0 // Reset total slots for new calculation
+                val ownerSpotIds = mutableListOf<String>()
+
                 if (documents.isEmpty) {
                     Log.d("OwnerDashboard", "No parking spots found for owner: ${currentUser.uid}")
                 } else {
+                    Log.d("OwnerDashboard", "Found ${documents.size()} parking spots for owner.")
                     for (document in documents) {
                         val spotId = document.id
                         val name = document.getString("name") ?: "Unnamed Spot"
                         val totalSlotsDoc = document.getLong("totalSlots") ?: 0
                         val availableSlots = document.getLong("availableSlots") ?: 0
                         val pricePerHour = document.getLong("pricePerHour") ?: 0
-                        val operatingHours = document.getString("operatingHours") ?: "N/A"
+                        val operatingHoursStartMillis = document.getLong("operatingHoursStartMillis") ?: 0
+                        val operatingHoursEndMillis = document.getLong("operatingHoursEndMillis") ?: 0
+                        val parkingType = document.getString("parkingType") ?: "covered"
+                        val emergencyContact = document.getString("emergencyContact") ?: ""
+                        val vehicleTypes = document.get("vehicleTypes") as? List<String> ?: listOf()
+                        val photoUrl = document.getString("photoUrl")
                         val location = document.getGeoPoint("location")
+
+                        Log.d("OwnerDashboard", "Spot ID: $spotId, Name: $name, TotalSlots: $totalSlotsDoc, Price: $pricePerHour")
 
                         val spot = ParkingSpot(
                             id = spotId,
@@ -120,15 +151,24 @@ class OwnerDashboardActivity : AppCompatActivity() {
                             totalSlots = totalSlotsDoc,
                             availableSlots = availableSlots,
                             pricePerHour = pricePerHour,
-                            operatingHours = operatingHours,
+                            operatingHoursStartMillis = operatingHoursStartMillis,
+                            operatingHoursEndMillis = operatingHoursEndMillis,
+                            parkingType = parkingType,
+                            emergencyContact = emergencyContact,
+                            vehicleTypes = vehicleTypes,
+                            photoUrl = photoUrl,
                             location = location
                         )
                         ownedParkingSpotsList.add(spot)
-                        totalOwnerSlots += totalSlotsDoc // Add to total slots
+                        totalOwnerSlots += totalSlotsDoc
+                        ownerSpotIds.add(spotId)
                     }
-                    Log.d("OwnerDashboard", "Fetched ${ownedParkingSpotsList.size} spots for owner. Total slots: $totalOwnerSlots")
                 }
                 ownedParkingSpotsAdapter.notifyDataSetChanged()
+                Log.d("OwnerDashboard", "Owned spots list updated. Total owner slots: $totalOwnerSlots")
+
+                calculateAndDisplaySummaryData(ownerSpotIds)
+
             }
             .addOnFailureListener { exception ->
                 Log.e("OwnerDashboard", "Error fetching owned parking spots", exception)
@@ -136,51 +176,47 @@ class OwnerDashboardActivity : AppCompatActivity() {
             }
     }
 
-    private fun calculateAndDisplaySummaryData() {
-        val currentUser = auth.currentUser
-        if (currentUser == null || ownedParkingSpotsList.isEmpty()) {
-            binding.tvTodayEarnings.text = "0.00 BDT"
-            binding.tvCurrentOccupancy.text = "0%"
-            return
-        }
-
-        // Get a list of IDs of all parking spots owned by the current user
-        val ownedSpotIds = ownedParkingSpotsList.map { it.id }
-
+    private fun calculateAndDisplaySummaryData(ownedSpotIds: List<String>) {
+        Log.d("OwnerDashboard", "Calculating summary data for spot IDs: $ownedSpotIds")
         if (ownedSpotIds.isEmpty()) {
             binding.tvTodayEarnings.text = "0.00 BDT"
             binding.tvCurrentOccupancy.text = "0%"
+            Log.d("OwnerDashboard", "No owned spot IDs. Earnings/Occupancy set to 0.")
             return
         }
 
-        // Calculate Today's Earnings
         calculateTodayEarnings(ownedSpotIds)
-
-        // Calculate Current Occupancy
         calculateCurrentOccupancy(ownedSpotIds)
     }
 
     private fun calculateTodayEarnings(ownedSpotIds: List<String>) {
-        val today = Calendar.getInstance()
-        today.set(Calendar.HOUR_OF_DAY, 0)
-        today.set(Calendar.MINUTE, 0)
-        today.set(Calendar.SECOND, 0)
-        val startOfDayMillis = today.timeInMillis
+        val todayStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        Log.d("OwnerDashboard", "Calculating earnings for spot IDs: $ownedSpotIds from actualEndTime >= $todayStart")
 
         db.collection("bookings")
-            .whereIn("spotId", ownedSpotIds) // Filter bookings for owner's spots
-            .whereEqualTo("sessionStatus", "ended") // Only count completed sessions
-            .whereGreaterThanOrEqualTo("actualEndTime", startOfDayMillis) // Bookings ended today
+            .whereIn("spotId", ownedSpotIds)
+            .whereEqualTo("status", "completed")
+            .whereGreaterThanOrEqualTo("actualEndTime", todayStart)
             .get()
             .addOnSuccessListener { documents ->
+                Log.d("OwnerDashboard", "Earnings query successful. Found ${documents.size()} completed bookings.")
                 var totalEarnings = 0.0
                 for (doc in documents) {
                     val totalPriceString = doc.getString("totalPrice") ?: "0 BDT"
-                    val priceParts = totalPriceString.split(" ")[0] // Get "300" from "300 BDT"
-                    totalEarnings += priceParts.toDoubleOrNull() ?: 0.0 // Convert to double
+                    val priceParts = totalPriceString.split(" ")[0]
+                    val bookingAmount = priceParts.toDoubleOrNull() ?: 0.0
+                    totalEarnings += bookingAmount
+                    Log.d("OwnerDashboard", "Processing completed booking ${doc.id}: Price $totalPriceString, Amount $bookingAmount. Running total: $totalEarnings")
                 }
                 val df = DecimalFormat("#.00")
                 binding.tvTodayEarnings.text = "${df.format(totalEarnings)} BDT"
+                Log.d("OwnerDashboard", "Today's Earnings: ${df.format(totalEarnings)} BDT")
             }
             .addOnFailureListener { exception ->
                 Log.e("OwnerDashboard", "Error calculating earnings", exception)
@@ -189,23 +225,25 @@ class OwnerDashboardActivity : AppCompatActivity() {
     }
 
     private fun calculateCurrentOccupancy(ownedSpotIds: List<String>) {
-        val currentTimeMillis = System.currentTimeMillis()
+        Log.d("OwnerDashboard", "Calculating occupancy for spot IDs: $ownedSpotIds")
 
         db.collection("bookings")
             .whereIn("spotId", ownedSpotIds)
-            .whereEqualTo("sessionStatus", "active") // Only count active sessions
+            .whereEqualTo("status", "active")
             .get()
             .addOnSuccessListener { documents ->
                 val activeBookingsCount = documents.size()
-                Log.d("OwnerDashboard", "Active bookings: $activeBookingsCount")
+                Log.d("OwnerDashboard", "Occupancy query successful. Found ${activeBookingsCount} active bookings.")
                 Log.d("OwnerDashboard", "Total owner slots: $totalOwnerSlots")
 
                 if (totalOwnerSlots > 0) {
                     val occupancyPercentage = (activeBookingsCount.toDouble() / totalOwnerSlots.toDouble()) * 100
                     val df = DecimalFormat("#.##")
                     binding.tvCurrentOccupancy.text = "${df.format(occupancyPercentage)}%"
+                    Log.d("OwnerDashboard", "Current Occupancy: ${df.format(occupancyPercentage)}%")
                 } else {
-                    binding.tvCurrentOccupancy.text = "0%" // No slots or no active bookings
+                    binding.tvCurrentOccupancy.text = "0%"
+                    Log.d("OwnerDashboard", "Current Occupancy: 0% (No total slots)")
                 }
             }
             .addOnFailureListener { exception ->

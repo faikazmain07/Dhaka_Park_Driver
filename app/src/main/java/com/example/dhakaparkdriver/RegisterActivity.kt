@@ -27,7 +27,6 @@ class RegisterActivity : AppCompatActivity() {
 
     private lateinit var googleSignInClient: GoogleSignInClient
 
-    // Launcher for the Google Sign-In intent
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -56,14 +55,12 @@ class RegisterActivity : AppCompatActivity() {
         userRole = intent.getStringExtra("USER_ROLE") ?: "driver"
         Log.d("RegisterActivity", "User role received: $userRole")
 
-        // Configure Google Sign In options
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-        // Set up all UI click listeners
         setupClickListeners()
     }
 
@@ -112,10 +109,6 @@ class RegisterActivity : AppCompatActivity() {
                         saveUserProfile(nameToSave, emailFromGoogle)
                     } else {
                         Log.d("RegisterActivity", "Existing user signed in with Google. Navigating to dashboard.")
-                        // If an existing user logs in with Google, they are treated as logged in.
-                        // For unverified existing users, SplashActivity will handle routing.
-                        // For verified existing users, they go to dashboard.
-                        // No signOut needed here for existing Google users.
                         navigateToDashboardForExistingUser()
                     }
                 } else {
@@ -175,20 +168,19 @@ class RegisterActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 Log.d("RegisterActivity", "User profile successfully saved to Firestore for UID: ${firebaseUser.uid}")
                 binding.progressBar.visibility = View.GONE
-                Toast.makeText(baseContext, "Registration successful! Please verify your email.", Toast.LENGTH_LONG).show() // Specific message for new registrations
+                Toast.makeText(baseContext, "Registration successful! Please check your email for verification.", Toast.LENGTH_LONG).show() // Specific message
 
-                sendEmailVerification() // Send email verification
+                sendEmailVerification() // <--- Now calls the standard email verification
 
-                // --- CRITICAL CHANGE: Redirect to EmailVerificationActivity and sign out ---
-                auth.signOut() // Sign out the newly registered user (until verified)
+                // Redirect to EmailVerificationActivity and sign out
+                auth.signOut()
                 val intent = Intent(this, EmailVerificationActivity::class.java).apply {
-                    // Pass email and role to the verification screen
                     putExtra("USER_EMAIL", email)
                     putExtra("USER_ROLE", userRole)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
                 startActivity(intent)
-                finish() // Finish RegisterActivity
+                finish()
             }
             .addOnFailureListener { e ->
                 binding.progressBar.visibility = View.GONE
@@ -197,6 +189,7 @@ class RegisterActivity : AppCompatActivity() {
             }
     }
 
+    // --- NEW: Function to send standard email verification (no ActionCodeSettings) ---
     private fun sendEmailVerification() {
         val user = auth.currentUser
 
@@ -206,19 +199,18 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        Log.d("RegisterActivity", "Attempting to send verification email to: ${user.email}")
+        Log.d("RegisterActivity", "Attempting to send standard verification email to: ${user.email}")
         user.sendEmailVerification()
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    Log.d("RegisterActivity", "SUCCESS: Email verification request sent for ${user.email}")
+                    Log.d("RegisterActivity", "SUCCESS: Standard email verification request sent for ${user.email}")
                 } else {
-                    Log.e("RegisterActivity", "FAILURE: Failed to send verification email for ${user.email}", task.exception)
+                    Log.e("RegisterActivity", "FAILURE: Failed to send standard verification email for ${user.email}", task.exception)
                     Toast.makeText(baseContext, "Failed to send verification email. Reason: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                 }
             }
     }
 
-    // This function is for existing Google users who are already signed in and likely verified.
     private fun navigateToDashboardForExistingUser() {
         Toast.makeText(this, "Welcome back!", Toast.LENGTH_SHORT).show()
         val intent = Intent(this, DriverDashboardActivity::class.java)

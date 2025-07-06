@@ -80,6 +80,7 @@ dependencies {
 
     // Glide for image loading (this is an independent library, its version is fine)
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation(libs.androidx.transition)
 
     // Testing libraries
     testImplementation(libs.junit)
@@ -90,6 +91,14 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.firebase:firebase-dynamic-links")
+    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
+
+
+
+    implementation("com.google.firebase:firebase-storage")
+
+
 
     // REMOVED: implementation(libs.material) to avoid potential conflict with the manual version.
 }

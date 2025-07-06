@@ -14,6 +14,7 @@ import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 class BookingActivity : AppCompatActivity() {
 
@@ -21,12 +22,15 @@ class BookingActivity : AppCompatActivity() {
     private val db = Firebase.firestore
     private val auth = FirebaseAuth.getInstance()
 
-    // Class-level variables to hold booking details
     private var spotId: String? = null
     private var pricePerHour: Long = 0
     private var totalSlots: Long = 0
     private var startTimeMillis: Long? = null
     private var endTimeMillis: Long? = null
+
+    // NEW: BookingActivity will now receive these as well
+    private var parkingType: String = ""
+    private var vehicleTypes: List<String> = listOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,11 +41,21 @@ class BookingActivity : AppCompatActivity() {
         spotId = intent.getStringExtra("SPOT_ID")
         val spotName = intent.getStringExtra("SPOT_NAME") ?: "Unknown Spot"
         pricePerHour = intent.getLongExtra("SPOT_PRICE_PER_HOUR", 0)
-        totalSlots = intent.getLongExtra("SPOT_AVAILABLE_SLOTS", 0)
+        totalSlots = intent.getLongExtra("SPOT_TOTAL_SLOTS", 0) // Changed to total slots
+        val availableSlots = intent.getLongExtra("SPOT_AVAILABLE_SLOTS", 0) // Still pass available
+
+        // NEW: Retrieve new data
+        parkingType = intent.getStringExtra("SPOT_PARKING_TYPE") ?: "N/A"
+        vehicleTypes = intent.getStringArrayListExtra("SPOT_VEHICLE_TYPES") ?: listOf()
+
 
         // Update the UI with the initial spot information
         binding.tvSpotName.text = spotName
-        binding.tvTotalSlots.text = "Total Parking Slots: $totalSlots"
+        binding.tvTotalSlots.text = "Total Parking Slots: $totalSlots" // Updated to totalSlots
+        binding.tvAvailableSlots.text = "Available Slots: $availableSlots" // Display available slots separately
+
+        // TODO: Display parkingType and vehicleTypes in BookingActivity UI if desired.
+        // Example: Toast.makeText(this, "Parking Type: $parkingType, Vehicles: ${vehicleTypes.joinToString()}", Toast.LENGTH_LONG).show()
 
         setupClickListeners()
     }
@@ -79,7 +93,6 @@ class BookingActivity : AppCompatActivity() {
                 binding.tvEndTime.text = formatTime(endTimeMillis!!)
             }
 
-            // Once both times are selected, check for availability
             if (startTimeMillis != null && endTimeMillis != null) {
                 checkAvailability()
             }
@@ -98,18 +111,15 @@ class BookingActivity : AppCompatActivity() {
         binding.tvTimeAvailability.text = "Checking availability..."
         binding.btnConfirmBooking.isEnabled = false
 
-        // This query is now much safer and more resilient
         db.collection("bookings")
             .whereEqualTo("spotId", spotId)
             .get()
             .addOnSuccessListener { documents ->
                 var conflictingBookings = 0
                 for (doc in documents) {
-                    // Read the start and end times as Long values
                     val bookingStartTimeMs = doc.getLong("startTimeMillis")
                     val bookingEndTimeMs = doc.getLong("endTimeMillis")
 
-                    // Perform the overlap check using the raw millisecond values
                     if (bookingStartTimeMs != null && bookingEndTimeMs != null) {
                         if (startTimeMillis!! < bookingEndTimeMs && endTimeMillis!! > bookingStartTimeMs) {
                             conflictingBookings++
@@ -144,7 +154,7 @@ class BookingActivity : AppCompatActivity() {
 
         val durationMillis = endTimeMillis!! - startTimeMillis!!
         val durationHours = TimeUnit.MILLISECONDS.toHours(durationMillis)
-        val remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis) - TimeUnit.HOURS.toMinutes(durationHours)
+        val remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis) % 60
 
         val totalHours = if (remainingMinutes > 0) durationHours + 1 else durationHours
         val finalHoursToCharge = if (totalHours < 1) 1 else totalHours
@@ -169,18 +179,16 @@ class BookingActivity : AppCompatActivity() {
         binding.btnConfirmBooking.isEnabled = false
         Toast.makeText(this, "Confirming booking...", Toast.LENGTH_SHORT).show()
 
-        // Create the data map using the more reliable Long values for time
-        val bookingData = hashMapOf(
-            "spotId" to spotId,
-            "driverId" to currentUser.uid,
-            "startTimeMillis" to startTimeMillis,
-            "endTimeMillis" to endTimeMillis,
-            "totalPrice" to binding.tvTotalPrice.text.toString(),
-            "status" to "confirmed",
-            "createdAt" to System.currentTimeMillis()
+        val newBooking = Booking(
+            spotId = spotId!!,
+            driverId = currentUser.uid,
+            startTimeMillis = startTimeMillis!!,
+            endTimeMillis = endTimeMillis!!,
+            totalPrice = binding.tvTotalPrice.text.toString(),
+            status = "confirmed",
         )
 
-        db.collection("bookings").add(bookingData)
+        db.collection("bookings").add(newBooking)
             .addOnSuccessListener { documentReference ->
                 Toast.makeText(this, "Booking confirmed successfully!", Toast.LENGTH_LONG).show()
 

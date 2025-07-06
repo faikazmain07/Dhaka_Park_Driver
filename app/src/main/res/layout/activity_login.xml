@@ -66,6 +66,18 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <!-- NEW: Forgot Password Text -->
+    <TextView
+        android:id="@+id/tvForgotPassword"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:padding="4dp"
+        android:text="Forgot Password?"
+        android:textColor="?attr/colorPrimary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tilPassword" />
+
     <Button
         android:id="@+id/btnLogin"
         android:layout_width="0dp"
@@ -76,7 +88,7 @@
         android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tilPassword" />
+        app:layout_constraintTop_toBottomOf="@id/tvForgotPassword" /> <!-- Fixed constraint -->
 
     <TextView
         android:id="@+id/tvGoToRegister"
@@ -90,7 +102,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btnLogin" />
 
-    <!-- NEW: Resend Verification Email Button -->
     <Button
         android:id="@+id/btnResendVerification"
         style="@style/Widget.MaterialComponents.Button.TextButton"
