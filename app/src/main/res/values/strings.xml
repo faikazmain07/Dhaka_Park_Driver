@@ -81,4 +81,6 @@
     <string name="welcome_guard">Welcome, Guard!</string>
     <string name="dhaka_parking">DHAKA PARKING</string>
     <string name="find_your_space">Find Your Space</string>
+    <string name="my_bookings">My Bookings</string>
+
 </resources>

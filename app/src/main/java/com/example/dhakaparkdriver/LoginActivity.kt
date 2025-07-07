@@ -44,7 +44,6 @@ class LoginActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // --- NEW: Listener for "Forgot Password?" ---
         binding.tvForgotPassword.setOnClickListener {
             val intent = Intent(this, ForgotPasswordActivity::class.java)
             startActivity(intent)

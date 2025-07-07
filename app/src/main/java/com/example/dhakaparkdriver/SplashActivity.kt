@@ -5,13 +5,13 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.WindowManager // <--- ADD THIS IMPORT
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import android.net.Uri
+// Removed: import android.net.Uri (no longer handling deep links here)
 
 class SplashActivity : AppCompatActivity() {
 
@@ -20,59 +20,13 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Make the splash screen full-screen for a cleaner look
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         setContentView(R.layout.activity_splash)
 
-        // Check for incoming email verification link immediately
-        if (intent != null && intent.data != null) {
-            val link = intent.data.toString()
-            Log.d("SplashActivity", "Incoming Deep Link: $link")
-
-            if (auth.isSignInWithEmailLink(link)) {
-                handleEmailLinkSignIn(link)
-                return
-            }
-        }
-
-        // Normal splash screen delay, then proceed with status check if no deep link
+        // Standard splash screen delay, then proceed with status check
         Handler(Looper.getMainLooper()).postDelayed({
             checkUserStatus()
         }, 1500)
-    }
-
-    private fun handleEmailLinkSignIn(emailLink: String) {
-        val uri = Uri.parse(emailLink)
-        val oobCode = uri.getQueryParameter("oobCode")
-        val email = uri.getQueryParameter("email")
-
-        if (oobCode == null) {
-            Log.e("SplashActivity", "Email link missing oobCode parameter. Cannot verify.")
-            Toast.makeText(this, "Verification link invalid. Please resend.", Toast.LENGTH_LONG).show()
-            navigateTo(LoginActivity::class.java)
-            return
-        }
-
-        if (email.isNullOrEmpty()) {
-            Log.e("SplashActivity", "Email not found in deep link. Cannot complete sign-in with link.")
-            Toast.makeText(this, "Please go to Login and try logging in with your email.", Toast.LENGTH_LONG).show()
-            navigateTo(LoginActivity::class.java)
-            return
-        }
-
-        auth.signInWithEmailLink(email, emailLink)
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    Log.d("SplashActivity", "Email link sign-in successful: ${task.result?.user?.email}")
-                    Toast.makeText(this, "Email verified and logged in!", Toast.LENGTH_LONG).show()
-                    fetchUserRoleAndRedirect(task.result?.user?.uid!!)
-                } else {
-                    Log.e("SplashActivity", "Error signing in with email link.", task.exception)
-                    Toast.makeText(this, "Failed to sign in via link. Please try logging in normally.", Toast.LENGTH_LONG).show()
-                    auth.signOut()
-                    navigateTo(LoginActivity::class.java)
-                }
-            }
     }
 
     private fun checkUserStatus() {
@@ -81,6 +35,7 @@ class SplashActivity : AppCompatActivity() {
         if (firebaseUser == null) {
             navigateTo(RoleSelectionActivity::class.java)
         } else {
+            // A user is signed in. Reload to get the latest verification status.
             firebaseUser.reload().addOnCompleteListener { reloadTask ->
                 if (reloadTask.isSuccessful) {
                     if (firebaseUser.isEmailVerified) {

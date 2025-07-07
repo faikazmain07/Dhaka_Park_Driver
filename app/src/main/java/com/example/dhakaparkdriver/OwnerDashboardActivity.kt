@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.dhakaparkdriver.databinding.ActivityOwnerDashboardBinding
 import com.google.firebase.auth.FirebaseAuth
@@ -24,8 +25,8 @@ class OwnerDashboardActivity : AppCompatActivity() {
     private lateinit var ownedParkingSpotsAdapter: OwnedParkingSpotAdapter
     private val ownedParkingSpotsList = mutableListOf<ParkingSpot>()
 
-    private var totalOwnerSlots = 0L // Keep track of total slots for occupancy calculation
-    private var occupiedOwnerSlots = 0L // Keep track of currently occupied slots
+    private var totalOwnerSlots = 0L
+    private var occupiedOwnerSlots = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,24 +41,65 @@ class OwnerDashboardActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.d("OwnerDashboard", "OwnerDashboardActivity onResume - Refreshing data.")
-        fetchOwnedParkingSpots() // This will also trigger summary data calculation
+        fetchOwnedParkingSpots()
     }
 
     private fun setupRecyclerView() {
-        // We'll pass a click listener to the adapter (for future detail/edit)
-        ownedParkingSpotsAdapter = OwnedParkingSpotAdapter(ownedParkingSpotsList) { spot ->
-            // TODO: In a future step, navigate to a detailed view for this specific parking spot
-            Toast.makeText(this, "Managing spot: ${spot.name}", Toast.LENGTH_SHORT).show()
-            val intent = Intent(this, OwnerBookingManagementActivity::class.java).apply {
-                putExtra("SELECTED_SPOT_ID", spot.id) // Pass the selected spot's ID
-                putExtra("SELECTED_SPOT_NAME", spot.name) // Pass the selected spot's name
-                // Add any other spot data needed for OwnerBookingDetailActivity
+        ownedParkingSpotsAdapter = OwnedParkingSpotAdapter(ownedParkingSpotsList) { spot, actionType ->
+            when (actionType) {
+                "edit" -> {
+                    val intent = Intent(this, AddParkingSpotActivity::class.java).apply {
+                        putExtra("SPOT_ID_TO_EDIT", spot.id)
+                    }
+                    startActivity(intent)
+                }
+                "delete" -> {
+                    confirmDeleteParkingSpot(spot)
+                }
+                "view" -> {
+                    val intent = Intent(this, OwnerBookingManagementActivity::class.java).apply {
+                        putExtra("SELECTED_SPOT_ID", spot.id)
+                        putExtra("SELECTED_SPOT_NAME", spot.name)
+                        putExtra("SELECTED_SPOT_TOTAL_SLOTS", spot.totalSlots)
+                        putExtra("SELECTED_SPOT_PRICE_PER_HOUR", spot.pricePerHour)
+                        putExtra("SELECTED_SPOT_HOURS_START", spot.operatingHoursStartMillis)
+                        putExtra("SELECTED_SPOT_HOURS_END", spot.operatingHoursEndMillis)
+                    }
+                    startActivity(intent)
+                }
             }
-            startActivity(intent)
         }
         binding.rvOwnedParkingSpots.layoutManager = LinearLayoutManager(this)
         binding.rvOwnedParkingSpots.adapter = ownedParkingSpotsAdapter
     }
+
+    private fun confirmDeleteParkingSpot(spot: ParkingSpot) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Parking Spot")
+            .setMessage("Are you sure you want to delete '${spot.name}'? This action cannot be undone.")
+            .setPositiveButton("Delete") { dialog, _ ->
+                deleteParkingSpot(spot)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun deleteParkingSpot(spot: ParkingSpot) {
+        db.collection("parking_spots").document(spot.id).delete()
+            .addOnSuccessListener {
+                Log.d("OwnerDashboard", "Parking spot ${spot.name} (${spot.id}) deleted successfully.")
+                Toast.makeText(this, "'${spot.name}' deleted successfully!", Toast.LENGTH_SHORT).show()
+                fetchOwnedParkingSpots()
+            }
+            .addOnFailureListener { e ->
+                Log.e("OwnerDashboard", "Error deleting parking spot ${spot.id}", e)
+                Toast.makeText(this, "Failed to delete '${spot.name}': ${e.message}", Toast.LENGTH_LONG).show()
+            }
+    }
+
 
     private fun displayOwnerName() {
         val currentUser = auth.currentUser
@@ -102,7 +144,6 @@ class OwnerDashboardActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         }
-        // TODO: Add listeners for btnRevenuePayments, etc.
     }
 
     private fun fetchOwnedParkingSpots() {
@@ -122,7 +163,7 @@ class OwnerDashboardActivity : AppCompatActivity() {
             .get()
             .addOnSuccessListener { documents ->
                 ownedParkingSpotsList.clear()
-                totalOwnerSlots = 0 // Reset total slots for new calculation
+                totalOwnerSlots = 0
                 val ownerSpotIds = mutableListOf<String>()
 
                 if (documents.isEmpty) {

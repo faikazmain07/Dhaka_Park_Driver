@@ -3,12 +3,15 @@ package com.example.dhakaparkdriver
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.TextView // NEW IMPORT
+import android.widget.ProgressBar // NEW IMPORT
+import android.widget.ImageView // NEW IMPORT
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.dhakaparkdriver.databinding.ActivityOwnerBookingDetailBinding
+// Removed: import com.example.dhakaparkdriver.databinding.ActivityOwnerBookingDetailBinding <-- DELETE THIS LINE
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.Query // <--- ADDED THIS IMPORT
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
@@ -18,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 class OwnerBookingDetailActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityBookingDetailBinding
+    // REMOVED: private lateinit var binding: ActivityOwnerBookingDetailBinding
     private val auth = FirebaseAuth.getInstance()
     private val db = Firebase.firestore
 
@@ -30,11 +33,28 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
     private lateinit var ownerBookingAdapter: OwnerBookingAdapter
     private val bookingsList = mutableListOf<Booking>()
 
+    // Manual View References
+    private lateinit var tvSpotNameTitle: TextView
+    private lateinit var tvSpotDetails: TextView
+    private lateinit var tvBookingsLabel: TextView
+    private lateinit var rvSpotBookings: androidx.recyclerview.widget.RecyclerView
+    private lateinit var progressBar: ProgressBar
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityOwnerBookingDetailBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        // Removed: binding = ActivityOwnerBookingDetailBinding.inflate(layoutInflater)
+        setContentView(R.layout.activity_owner_booking_detail) // Set content view directly
 
+        // --- MANUAL findViewById for all views ---
+        tvSpotNameTitle = findViewById(R.id.tvSpotNameTitle)
+        tvSpotDetails = findViewById(R.id.tvSpotDetails)
+        tvBookingsLabel = findViewById(R.id.tvBookingsLabel)
+        rvSpotBookings = findViewById(R.id.rvSpotBookings)
+        progressBar = findViewById(R.id.progressBar)
+        // --- END MANUAL findViewById ---
+
+
+        // Get spot details passed from OwnerBookingManagementActivity
         spotId = intent.getStringExtra("SELECTED_SPOT_ID")
         spotName = intent.getStringExtra("SELECTED_SPOT_NAME")
 
@@ -44,8 +64,11 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
             return
         }
 
-        setupBookingsRecyclerView()
+        // Fetch parking spot details to display name, total slots, price
         fetchParkingSpotDetails(spotId!!)
+
+        // Setup RecyclerView for bookings
+        setupBookingsRecyclerView()
     }
 
     override fun onResume() {
@@ -59,15 +82,15 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
         ownerBookingAdapter = OwnerBookingAdapter(bookingsList) { booking, actionType ->
             handleBookingAction(booking, actionType)
         }
-        binding.rvSpotBookings.layoutManager = LinearLayoutManager(this)
-        binding.rvSpotBookings.adapter = ownerBookingAdapter
+        rvSpotBookings.layoutManager = LinearLayoutManager(this) // Use manual rvSpotBookings
+        rvSpotBookings.adapter = ownerBookingAdapter // Use manual rvSpotBookings
     }
 
     private fun fetchParkingSpotDetails(id: String) {
-        binding.progressBar.visibility = View.VISIBLE
+        progressBar.visibility = View.VISIBLE // Use manual progressBar
         db.collection("parking_spots").document(id).get()
             .addOnSuccessListener { document ->
-                binding.progressBar.visibility = View.GONE
+                progressBar.visibility = View.GONE // Use manual progressBar
                 if (document.exists()) {
                     val name = document.getString("name") ?: "Unnamed Spot"
                     val total = document.getLong("totalSlots") ?: 0
@@ -79,13 +102,14 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
                     totalSlots = total
                     pricePerHour = price
 
-                    binding.tvSpotNameTitle.text = "Bookings for $name"
+                    // Display spot name and general details
+                    tvSpotNameTitle.text = "Bookings for $name" // Use manual tvSpotNameTitle
                     val formattedHours = if (operatingHoursStartMillis != 0L && operatingHoursEndMillis != 0L) {
                         val start = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursStartMillis))
                         val end = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursEndMillis))
                         "$start - $end"
                     } else "N/A"
-                    binding.tvSpotDetails.text = "Total Slots: $total | Price: $price BDT/hr | Hours: $formattedHours"
+                    tvSpotDetails.text = "Total Slots: $total | Price: $price BDT/hr | Hours: $formattedHours" // Use manual tvSpotDetails
 
                     fetchBookingsForSpot(id) // Now fetch bookings
                 } else {
@@ -94,14 +118,14 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
                 }
             }
             .addOnFailureListener { e ->
-                binding.progressBar.visibility = View.GONE
+                progressBar.visibility = View.GONE // Use manual progressBar
                 Toast.makeText(this, "Error fetching spot details: ${e.message}", Toast.LENGTH_LONG).show()
                 finish()
             }
     }
 
     private fun fetchBookingsForSpot(spotId: String) {
-        binding.progressBar.visibility = View.VISIBLE
+        progressBar.visibility = View.VISIBLE // Use manual progressBar
         db.collection("bookings")
             .whereEqualTo("spotId", spotId)
             .orderBy("startTimeMillis", Query.Direction.ASCENDING) // Order by start time
@@ -116,13 +140,13 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
                     }
                 }
                 ownerBookingAdapter.notifyDataSetChanged()
-                binding.progressBar.visibility = View.GONE
+                progressBar.visibility = View.GONE // Use manual progressBar
                 Log.d("OwnerBookingDetail", "Fetched ${bookingsList.size} bookings for spot: $spotId")
             }
             .addOnFailureListener { e ->
                 Log.e("OwnerBookingDetail", "Error fetching bookings for spot $spotId", e)
                 Toast.makeText(this, "Error loading bookings: ${e.message}", Toast.LENGTH_SHORT).show()
-                binding.progressBar.visibility = View.GONE
+                progressBar.visibility = View.GONE // Use manual progressBar
             }
     }
 
@@ -138,29 +162,26 @@ class OwnerBookingDetailActivity : AppCompatActivity() {
     }
 
     private fun deleteBooking(booking: Booking) {
-        binding.progressBar.visibility = View.VISIBLE
+        progressBar.visibility = View.VISIBLE // Use manual progressBar
         db.collection("bookings").document(booking.id).delete()
             .addOnSuccessListener {
                 Toast.makeText(this, "Booking deleted successfully!", Toast.LENGTH_SHORT).show()
                 Log.d("OwnerBookingDetail", "Booking ${booking.id} deleted.")
-                // Refresh the list after deletion
-                fetchBookingsForSpot(booking.spotId) // <--- CORRECTED CALL
-                binding.progressBar.visibility = View.GONE
+                fetchBookingsForSpot(booking.spotId)
+                progressBar.visibility = View.GONE // Use manual progressBar
             }
             .addOnFailureListener { e ->
                 Log.e("OwnerBookingDetail", "Error deleting booking ${booking.id}", e)
                 Toast.makeText(this, "Failed to delete booking: ${e.message}", Toast.LENGTH_LONG).show()
-                binding.progressBar.visibility = View.GONE
+                progressBar.visibility = View.GONE // Use manual progressBar
             }
     }
 
-    // Helper function for formatting time (from BookingActivity)
     private fun formatTime(millis: Long): String {
         val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
         return sdf.format(Date(millis))
     }
 
-    // Helper function for formatting full date and time (useful for actual times)
     private fun formatDateTime(millis: Long): String {
         val sdf = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault())
         return sdf.format(Date(millis))

@@ -1,6 +1,6 @@
-// In build.gradle.kts (app)
+// App-level build file
 
-// Step 1: Add code to read from local.properties
+// Block to read from local.properties (keep this for MAPS_API_KEY)
 import java.util.Properties
 
 val properties = Properties()
@@ -9,13 +9,10 @@ if (localPropertiesFile.exists()) {
     properties.load(localPropertiesFile.inputStream())
 }
 
-
-// App-level build file
 plugins {
-    alias(libs.plugins.google.gms.google.services)
+    id("com.google.gms.google-services") // Apply Google Services plugin
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.androidx.navigation.safeargs.kotlin) // Use the alias
 }
 
 android {
@@ -30,8 +27,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Step 2: Create a placeholder for the API key in the manifest
+        // Placeholder for Google Maps API Key from local.properties
         manifestPlaceholders["MAPS_API_KEY"] = properties.getProperty("MAPS_API_KEY") ?: ""
     }
 
@@ -53,52 +49,42 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
+        viewBinding = true // Enable View Binding for all layouts
     }
 }
 
 dependencies {
-    // Import a specific, stable Firebase BoM
-    implementation(platform("com.google.firebase:firebase-bom:32.8.1"))
+    // Firebase Bill of Materials (BoM) - manages versions for all Firebase libraries
+    implementation(platform("com.google.firebase:firebase-bom:32.8.1")) // Stable Firebase BoM version
 
-    // Declare Firebase library dependencies WITHOUT versions
+    // Firebase Core libraries
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage") // For photo upload
 
-    // AndroidX libraries (from libs.versions.toml) - These are usually fine
+    // AndroidX Core libraries (managed by libs.versions.toml)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.material) // Material Design components
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0") // For DriverDashboard layout
 
-    // --- KEY CHANGE: Manually specify Material and Play Services versions ---
-    // We will use specific versions known for stability instead of relying on defaults.
-    implementation("com.google.android.material:material:1.11.0")
+    // Google Play Services for Maps and Location (explicit stable versions)
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation("com.google.android.gms:play-services-auth:20.7.0") // For Google Sign-In
 
-    // Glide for image loading (this is an independent library, its version is fine)
+    // Glide for image loading and its annotation processor
     implementation("com.github.bumptech.glide:glide:4.16.0")
-    implementation(libs.androidx.transition)
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+
+    // QR Code Scanner (zxing-android-embedded)
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     // Testing libraries
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
-    implementation(libs.androidx.navigation.fragment.ktx)
-    implementation(libs.androidx.navigation.ui.ktx)
-    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
-    implementation("com.google.firebase:firebase-dynamic-links")
-    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
-
-
-
-    implementation("com.google.firebase:firebase-storage")
-
-
-
-    // REMOVED: implementation(libs.material) to avoid potential conflict with the manual version.
 }

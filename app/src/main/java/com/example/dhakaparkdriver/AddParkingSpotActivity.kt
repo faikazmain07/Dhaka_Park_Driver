@@ -26,12 +26,13 @@ import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import com.bumptech.glide.Glide
-import java.io.IOException // NEW IMPORT
-import android.location.Geocoder // NEW IMPORT
+import java.io.IOException
+import android.location.Geocoder
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -49,11 +50,13 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
     private var operatingHoursStartMillis: Long? = null
     private var operatingHoursEndMillis: Long? = null
 
-    // Removed PlacesClient, using Geocoder instead
-    private lateinit var geocoder: Geocoder // NEW: Geocoder instance
-
+    private lateinit var geocoder: Geocoder
 
     private var selectedImageUri: Uri? = null
+    private var existingPhotoUrl: String? = null
+
+    private var spotIdToEdit: String? = null
+    private var fetchedSpotForEdit: ParkingSpot? = null
 
     private val selectImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -64,15 +67,12 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // Removed autocompleteLauncher
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAddParkingSpotBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize Geocoder
         geocoder = Geocoder(this, Locale.getDefault())
 
         val mapFragment = SupportMapFragment.newInstance()
@@ -81,13 +81,25 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
             .commit()
         mapFragment.getMapAsync(this)
 
+        spotIdToEdit = intent.getStringExtra("SPOT_ID_TO_EDIT")
+        Log.d("AddParkingSpotActivity", "onCreate: spotIdToEdit received: $spotIdToEdit")
+
+        if (spotIdToEdit != null) {
+            binding.tvAddSpotTitle.text = "Edit Parking Spot"
+            binding.btnAddSpot.text = "Update Parking Spot"
+            fetchParkingSpotForEdit(spotIdToEdit!!)
+        } else {
+            binding.tvAddSpotTitle.text = "Add New Parking Spot"
+            binding.btnAddSpot.text = "Add Parking Spot"
+        }
+
         setupClickListeners()
-        setupAddressSearch() // Setup for address search
+        setupAddressSearch()
     }
 
     private fun setupClickListeners() {
         binding.btnAddSpot.setOnClickListener {
-            addParkingSpot()
+            saveParkingSpot()
         }
 
         binding.tvOperatingHoursStart.setOnClickListener {
@@ -102,12 +114,11 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // NEW: Setup for Address Search functionality using Geocoder
     private fun setupAddressSearch() {
         binding.tilAddressSearch.setEndIconOnClickListener {
             val query = binding.etAddressSearch.text.toString().trim()
             if (query.isNotEmpty()) {
-                searchAddress(query) // Call local search function
+                searchAddress(query)
             } else {
                 Toast.makeText(this, "Please enter an address to search.", Toast.LENGTH_SHORT).show()
             }
@@ -117,7 +128,7 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val query = binding.etAddressSearch.text.toString().trim()
                 if (query.isNotEmpty()) {
-                    searchAddress(query) // Call local search function
+                    searchAddress(query)
                 } else {
                     Toast.makeText(this, "Please enter an address to search.", Toast.LENGTH_SHORT).show()
                 }
@@ -128,19 +139,18 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // NEW: Function to perform address search using Geocoder
     private fun searchAddress(query: String) {
-        binding.progressBar.visibility = View.VISIBLE // Show progress while searching
+        binding.progressBar.visibility = View.VISIBLE
         try {
-            val addresses = geocoder.getFromLocationName(query, 1) // Get up to 1 result
+            val addresses = geocoder.getFromLocationName(query, 1)
             if (addresses != null && addresses.isNotEmpty()) {
                 val address = addresses[0]
                 val latLng = LatLng(address.latitude, address.longitude)
 
                 selectedLocation = latLng
-                updateLocationMarker(latLng) // Move map and pin
+                updateLocationMarker(latLng)
                 binding.tvSelectedLocation.text = address.getAddressLine(0) ?: "Lat: %.4f, Lng: %.4f".format(Locale.getDefault(), latLng.latitude, latLng.longitude)
-                binding.etAddressSearch.setText(address.getAddressLine(0)) // Pre-fill search bar
+                binding.etAddressSearch.setText(address.getAddressLine(0))
                 Toast.makeText(this, "Moved map to: ${address.getAddressLine(0)}", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(this, "No results found for '$query'.", Toast.LENGTH_SHORT).show()
@@ -151,11 +161,11 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
         } catch (e: Exception) {
             Log.e("AddParkingSpotActivity", "Error during geocoding", e)
             Toast.makeText(this, "Error searching address: ${e.message}", Toast.LENGTH_LONG).show()
+            e.printStackTrace()
         } finally {
-            binding.progressBar.visibility = View.GONE // Hide progress
+            binding.progressBar.visibility = View.GONE
         }
     }
-
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
@@ -167,6 +177,11 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
             updateLocationMarker(latLng)
             binding.tvSelectedLocation.text = "Lat: %.4f, Lng: %.4f".format(Locale.getDefault(), latLng.latitude, latLng.longitude)
             Log.d("AddParkingSpotActivity", "Selected map location: $latLng")
+        }
+
+        if (spotIdToEdit != null && fetchedSpotForEdit != null) {
+            populateFormWithData(fetchedSpotForEdit!!)
+            fetchedSpotForEdit = null
         }
     }
 
@@ -211,7 +226,95 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun addParkingSpot() {
+    private fun fetchParkingSpotForEdit(spotId: String) {
+        binding.progressBar.visibility = View.VISIBLE
+        db.collection("parking_spots").document(spotId).get()
+            .addOnSuccessListener { document ->
+                binding.progressBar.visibility = View.GONE
+                if (document.exists()) {
+                    val spot = document.toObject(ParkingSpot::class.java)?.copy(id = document.id)
+                    if (spot != null) {
+                        fetchedSpotForEdit = spot
+                        if (::mMap.isInitialized) {
+                            populateFormWithData(fetchedSpotForEdit!!)
+                            fetchedSpotForEdit = null
+                        }
+                    } else {
+                        Toast.makeText(this, "Error: Malformed spot data.", Toast.LENGTH_LONG).show()
+                        finish()
+                    }
+                } else {
+                    Toast.makeText(this, "Error: Spot not found for editing.", Toast.LENGTH_LONG).show()
+                    finish()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("AddParkingSpotActivity", "Error fetching spot for edit", e)
+                Toast.makeText(this, "Error loading spot details: ${e.message}", Toast.LENGTH_LONG).show()
+                binding.progressBar.visibility = View.GONE
+                finish()
+            }
+    }
+
+    private fun populateFormWithData(spot: ParkingSpot) {
+        binding.etSpotName.setText(spot.name)
+        binding.etTotalSlots.setText(spot.totalSlots.toString())
+        binding.etPricePerHour.setText(spot.pricePerHour.toString())
+        binding.etEmergencyContact.setText(spot.emergencyContact)
+
+        if (spot.parkingType == "covered") {
+            binding.rbCovered.isChecked = true
+        } else {
+            binding.rbOpen.isChecked = true
+        }
+
+        binding.cbCar.isChecked = spot.vehicleTypes.contains("car")
+        binding.cbBike.isChecked = spot.vehicleTypes.contains("bike")
+        binding.cbTruck.isChecked = spot.vehicleTypes.contains("truck")
+
+        // --- FIXED: Populate operating hours only if valid timestamps exist ---
+        if (spot.operatingHoursStartMillis != 0L && spot.operatingHoursEndMillis != 0L) {
+            operatingHoursStartMillis = spot.operatingHoursStartMillis
+            operatingHoursEndMillis = spot.operatingHoursEndMillis
+            binding.tvOperatingHoursStart.text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursStartMillis!!))
+            binding.tvOperatingHoursEnd.text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursEndMillis!!))
+        } else {
+            // If times are 0, reset fields for clear user input
+            operatingHoursStartMillis = null
+            operatingHoursEndMillis = null
+            binding.tvOperatingHoursStart.text = getString(R.string.start_time) // From strings.xml for default
+            binding.tvOperatingHoursEnd.text = getString(R.string.end_time)     // From strings.xml for default
+        }
+
+        if (spot.photoUrl != null && spot.photoUrl.isNotEmpty()) {
+            existingPhotoUrl = spot.photoUrl
+            Glide.with(this).load(spot.photoUrl).into(binding.ivSpotPhotoPreview)
+        } else {
+            existingPhotoUrl = null // Clear existing photo if URL is empty or null
+            binding.ivSpotPhotoPreview.setImageResource(R.drawable.ic_image_placeholder) // Set placeholder
+        }
+
+        if (spot.location != null) {
+            val latLng = LatLng(spot.location.latitude, spot.location.longitude)
+            selectedLocation = latLng
+            updateLocationMarker(latLng)
+            binding.tvSelectedLocation.text = "Lat: %.4f, Lng: %.4f".format(Locale.getDefault(), latLng.latitude, latLng.longitude)
+            try {
+                val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+                if (addresses != null && addresses.isNotEmpty()) {
+                    binding.etAddressSearch.setText(addresses[0].getAddressLine(0))
+                }
+            } catch (e: IOException) {
+                Log.e("AddParkingSpotActivity", "Geocoder error reverse geocoding", e)
+            }
+        } else {
+            selectedLocation = null // Clear selected location
+            locationMarker?.remove() // Remove any map marker
+            binding.tvSelectedLocation.text = getString(R.string.no_location_selected) // From strings.xml for default
+        }
+    }
+
+    private fun saveParkingSpot() {
         val spotName = binding.etSpotName.text.toString().trim()
         val totalSlotsStr = binding.etTotalSlots.text.toString().trim()
         val pricePerHourStr = binding.etPricePerHour.text.toString().trim()
@@ -264,7 +367,13 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
             isValid = false
         }
 
-        if (!isValid) return
+        if (!isValid) return // If any validation failed, return here
+
+        // Declare non-nullable variables AFTER validation is confirmed
+        val finalTotalSlots = totalSlotsValidated!!
+        val finalPricePerHour = pricePerHourValidated!!
+        val finalOperatingHoursStartMillis = operatingHoursStartMillis!!
+        val finalOperatingHoursEndMillis = operatingHoursEndMillis!!
 
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -274,34 +383,34 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
 
         binding.btnAddSpot.isEnabled = false
         binding.progressBar.visibility = View.VISIBLE
-        Toast.makeText(this, "Adding parking spot...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Saving parking spot...", Toast.LENGTH_SHORT).show()
 
         if (selectedImageUri != null) {
-            uploadPhotoAndAddSpot(
+            uploadPhotoAndSaveSpot(
                 spotName,
-                totalSlotsValidated!!,
-                pricePerHourValidated!!,
-                operatingHoursStartMillis!!,
-                operatingHoursEndMillis!!,
-                parkingType, emergencyContact, vehicleTypes, currentUser.uid
+                finalTotalSlots,
+                finalPricePerHour,
+                finalOperatingHoursStartMillis,
+                finalOperatingHoursEndMillis,
+                parkingType, emergencyContact, vehicleTypes, currentUser.uid, spotIdToEdit
             )
         } else {
             saveParkingSpotToFirestore(
                 spotName,
-                totalSlotsValidated!!,
-                pricePerHourValidated!!,
-                operatingHoursStartMillis!!,
-                operatingHoursEndMillis!!,
-                parkingType, emergencyContact, vehicleTypes, null, currentUser.uid
+                finalTotalSlots,
+                finalPricePerHour,
+                finalOperatingHoursStartMillis,
+                finalOperatingHoursEndMillis,
+                parkingType, emergencyContact, vehicleTypes, existingPhotoUrl, currentUser.uid, spotIdToEdit
             )
         }
     }
 
-    private fun uploadPhotoAndAddSpot(
+    private fun uploadPhotoAndSaveSpot(
         spotName: String, totalSlots: Long, pricePerHour: Float,
         operatingHoursStartMillis: Long, operatingHoursEndMillis: Long,
         parkingType: String, emergencyContact: String, vehicleTypes: List<String>,
-        ownerId: String
+        ownerId: String, spotIdToEdit: String?
     ) {
         val photoRef = storage.reference.child("parking_spot_photos/${System.currentTimeMillis()}-${ownerId}.jpg")
         selectedImageUri?.let { uri ->
@@ -311,7 +420,7 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
                         Log.d("AddParkingSpotActivity", "Photo uploaded. Download URL: $downloadUri")
                         saveParkingSpotToFirestore(
                             spotName, totalSlots, pricePerHour, operatingHoursStartMillis, operatingHoursEndMillis,
-                            parkingType, emergencyContact, vehicleTypes, downloadUri.toString(), ownerId
+                            parkingType, emergencyContact, vehicleTypes, downloadUri.toString(), ownerId, spotIdToEdit
                         )
                     }
                 }
@@ -328,13 +437,14 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
         spotName: String, totalSlots: Long, pricePerHour: Float,
         operatingHoursStartMillis: Long, operatingHoursEndMillis: Long,
         parkingType: String, emergencyContact: String, vehicleTypes: List<String>,
-        photoUrl: String?, ownerId: String
+        photoUrl: String?, ownerId: String, spotIdToEdit: String?
     ) {
         val parkingSpotData = hashMapOf(
             "ownerId" to ownerId,
             "name" to spotName,
             "totalSlots" to totalSlots,
-            "availableSlots" to totalSlots,
+            // Keep existing availableSlots when updating, otherwise set to total on new add
+            "availableSlots" to if (spotIdToEdit == null) totalSlots else (fetchedSpotForEdit?.availableSlots ?: totalSlots),
             "pricePerHour" to pricePerHour,
             "operatingHoursStartMillis" to operatingHoursStartMillis,
             "operatingHoursEndMillis" to operatingHoursEndMillis,
@@ -343,21 +453,53 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
             "vehicleTypes" to vehicleTypes,
             "photoUrl" to photoUrl,
             "location" to GeoPoint(selectedLocation!!.latitude, selectedLocation!!.longitude),
-            "isAvailable" to true,
-            "createdAt" to System.currentTimeMillis()
+            "isAvailable" to true, // This should probably be handled more dynamically if spot can be inactive
+            "createdAt" to System.currentTimeMillis() // Only set on creation, not update
         )
 
-        db.collection("parking_spots")
-            .add(parkingSpotData)
-            .addOnSuccessListener { documentReference ->
-                Toast.makeText(this, "Parking spot added successfully!", Toast.LENGTH_LONG).show()
-                Log.d("AddParkingSpotActivity", "Spot added with ID: ${documentReference.id}")
+        val saveTask = if (spotIdToEdit == null) {
+            db.collection("parking_spots").add(parkingSpotData)
+        } else {
+            // For update, create a map with only updated fields (or all fields, but selectively handle)
+            val updatesMap = mutableMapOf<String, Any>(
+                "name" to spotName,
+                "totalSlots" to totalSlots,
+                "availableSlots" to (fetchedSpotForEdit?.availableSlots ?: totalSlots), // <--- FIXED: Preserve availableSlots
+                "pricePerHour" to pricePerHour,
+                "operatingHoursStartMillis" to operatingHoursStartMillis,
+                "operatingHoursEndMillis" to operatingHoursEndMillis,
+                "parkingType" to parkingType,
+                "emergencyContact" to emergencyContact,
+                "vehicleTypes" to vehicleTypes,
+                "location" to GeoPoint(selectedLocation!!.latitude, selectedLocation!!.longitude),
+                "lastUpdated" to FieldValue.serverTimestamp()
+            )
+            // Only update photoUrl if a new one was selected or cleared
+            if (photoUrl != null) {
+                updatesMap["photoUrl"] = photoUrl
+            } else if (selectedImageUri == null && existingPhotoUrl != null) {
+                // If user didn't select new photo and there was an existing one,
+                // and existingPhotoUrl is null, it means they cleared it.
+                updatesMap["photoUrl"] = "" // Clear the URL in Firestore if it was cleared in UI
+            }
+            // createdAt should not be removed or set for updates, it's a creation timestamp.
+            // But if it's explicitly part of parkingSpotData, Firestore update will just overwrite.
+            // Better to only update specific fields rather than converting parkingSpotData to update map directly.
+
+            db.collection("parking_spots").document(spotIdToEdit)
+                .update(updatesMap)
+        }
+
+        saveTask
+            .addOnSuccessListener {
+                Toast.makeText(this, "Parking spot saved successfully!", Toast.LENGTH_LONG).show()
+                Log.d("AddParkingSpotActivity", "Spot saved. ID: ${spotIdToEdit ?: "New"}")
                 binding.progressBar.visibility = View.GONE
                 finish()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to add spot: ${e.message}", Toast.LENGTH_LONG).show()
-                Log.e("AddParkingSpotActivity", "Error adding parking spot to Firestore", e)
+                Toast.makeText(this, "Failed to save spot: ${e.message}", Toast.LENGTH_LONG).show()
+                Log.e("AddParkingSpotActivity", "Error saving parking spot", e)
                 binding.btnAddSpot.isEnabled = true
                 binding.progressBar.visibility = View.GONE
             }
@@ -366,9 +508,9 @@ class AddParkingSpotActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun bitmapDescriptorFromVector(vectorResId: Int): BitmapDescriptor? {
         return ContextCompat.getDrawable(this, vectorResId)?.run {
             setBounds(0, 0, intrinsicWidth, intrinsicHeight)
-            val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
+            val bitmap =
+                Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
             draw(Canvas(bitmap))
             BitmapDescriptorFactory.fromBitmap(bitmap)
         }
-    }
-}
+    }}

@@ -103,6 +103,11 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(intent)
             finish()
         }
+
+        binding.btnMyBookings.setOnClickListener {
+            val intent = Intent(this, DriverBookingsActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     private fun checkLocationPermission() {
@@ -135,12 +140,12 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
                     val locationData = document.getGeoPoint("location")
                     val availableSlots = document.getLong("availableSlots") ?: 0
                     val price = document.getLong("pricePerHour") ?: 0
-                    val operatingHoursStartMillis = document.getLong("operatingHoursStartMillis") ?: 0 // NEW
-                    val operatingHoursEndMillis = document.getLong("operatingHoursEndMillis") ?: 0   // NEW
-                    val parkingType = document.getString("parkingType") ?: "N/A"                    // NEW
-                    val emergencyContact = document.getString("emergencyContact") ?: "N/A"          // NEW
-                    val vehicleTypes = document.get("vehicleTypes") as? List<String> ?: listOf()   // NEW
-                    val photoUrl = document.getString("photoUrl")                                   // NEW
+                    val operatingHoursStartMillis = document.getLong("operatingHoursStartMillis") ?: 0
+                    val operatingHoursEndMillis = document.getLong("operatingHoursEndMillis") ?: 0
+                    val parkingType = document.getString("parkingType") ?: "N/A"
+                    val emergencyContact = document.getString("emergencyContact") ?: "N/A"
+                    val vehicleTypes = document.get("vehicleTypes") as? List<String> ?: listOf()
+                    val photoUrl = document.getString("photoUrl")
                     val totalSlots = document.getLong("totalSlots") ?: 0
 
                     val parkingSpot = ParkingSpot(
@@ -157,7 +162,6 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
                         photoUrl = photoUrl,
                         location = locationData
                     )
-
                     if (userLocation != null && locationData != null) {
                         val spotLocation = Location("").apply {
                             latitude = locationData.latitude
@@ -169,16 +173,16 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     if (locationData != null) {
                         val spotLatLng = LatLng(locationData.latitude, locationData.longitude)
-                        // Updated snippet for more details
                         val formattedHours = if (operatingHoursStartMillis != 0L && operatingHoursEndMillis != 0L) {
                             val start = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursStartMillis))
                             val end = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(operatingHoursEndMillis))
                             "$start - $end"
                         } else "N/A"
+                        val vehicleTypesString = parkingSpot.vehicleTypes.joinToString(", ") { it.capitalize(Locale.getDefault()) }
 
                         val snippet = "Available: $availableSlots/$totalSlots | ${price} BDT/hr\n" +
-                                "Hours: $formattedHours | Type: $parkingType\n" +
-                                "Supported: ${vehicleTypes.joinToString(", ")}\n" +
+                                "Hours: $formattedHours | Type: ${parkingType.capitalize(Locale.getDefault())}\n" +
+                                "Supported: ${vehicleTypesString}\n" +
                                 "Tap to book!"
 
                         val marker = mMap.addMarker(
@@ -214,9 +218,10 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
             putExtra("SPOT_PRICE_PER_HOUR", spot.pricePerHour)
             putExtra("SPOT_AVAILABLE_SLOTS", spot.availableSlots)
             putExtra("SPOT_TOTAL_SLOTS", spot.totalSlots)
-            // NEW: Pass new spot details for display in BookingActivity if needed
             putExtra("SPOT_PARKING_TYPE", spot.parkingType)
-            putExtra("SPOT_VEHICLE_TYPES", ArrayList(spot.vehicleTypes)) // Pass as ArrayList
+            putExtra("SPOT_VEHICLE_TYPES", ArrayList(spot.vehicleTypes))
+            putExtra("SPOT_OPERATING_HOURS_START", spot.operatingHoursStartMillis)
+            putExtra("SPOT_OPERATING_HOURS_END", spot.operatingHoursEndMillis)
         }
         startActivity(intent)
     }
@@ -252,6 +257,7 @@ class DriverDashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         return ContextCompat.getDrawable(this, vectorResId)?.run {
             setBounds(0, 0, intrinsicWidth, intrinsicHeight)
             val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
+
             draw(Canvas(bitmap))
             BitmapDescriptorFactory.fromBitmap(bitmap)
         }

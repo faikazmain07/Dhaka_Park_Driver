@@ -57,6 +57,7 @@
         app:layout_constraintTop_toBottomOf="@id/tvBookingsLabel"
         tools:listitem="@layout/list_item_owner_booking" />
 
+    <!-- ProgressBar (should be at the very end of the ConstraintLayout, before </ConstraintLayout>) -->
     <ProgressBar
         android:id="@+id/progressBar"
         style="?android:attr/progressBarStyle"

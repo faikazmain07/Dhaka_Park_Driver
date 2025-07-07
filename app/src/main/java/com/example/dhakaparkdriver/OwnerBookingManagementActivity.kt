@@ -18,8 +18,8 @@ class OwnerBookingManagementActivity : AppCompatActivity() {
     private val auth = FirebaseAuth.getInstance()
     private val db = Firebase.firestore
 
-    private lateinit var ownedParkingSpotsAdapter: OwnedParkingSpotAdapter // Reusing the existing adapter
-    private val ownedParkingSpotsList = mutableListOf<ParkingSpot>() // List to display owner's spots
+    private lateinit var ownedParkingSpotsAdapter: OwnedParkingSpotAdapter
+    private val ownedParkingSpotsList = mutableListOf<ParkingSpot>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,10 +36,19 @@ class OwnerBookingManagementActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        // We'll pass a click listener to the adapter
-        ownedParkingSpotsAdapter = OwnedParkingSpotAdapter(ownedParkingSpotsList) { spot ->
-            // When an owned spot is clicked, launch its detail/management activity
-            launchOwnerBookingDetail(spot)
+        // --- FIXED: Pass a lambda that accepts both the spot and an action type ---
+        ownedParkingSpotsAdapter = OwnedParkingSpotAdapter(ownedParkingSpotsList) { spot, actionType ->
+            when (actionType) {
+                "edit" -> {
+                    // Launch AddParkingSpotActivity in EDIT mode
+                    // TODO: Implement actual edit flow later (pre-fill form etc.)
+                    Toast.makeText(this, "Editing spot: ${spot.name}", Toast.LENGTH_SHORT).show()
+                }
+                "view" -> { // This is the default action for tapping the card
+                    // Launch OwnerBookingDetailActivity to manage bookings for this spot
+                    launchOwnerBookingDetail(spot)
+                }
+            }
         }
         binding.rvParkingSpotsToManage.layoutManager = LinearLayoutManager(this)
         binding.rvParkingSpotsToManage.adapter = ownedParkingSpotsAdapter
@@ -65,6 +74,7 @@ class OwnerBookingManagementActivity : AppCompatActivity() {
                     Log.d("OwnerBookingMgmt", "No parking spots found for owner: ${currentUser.uid}")
                     Toast.makeText(this, "You have no parking spots to manage.", Toast.LENGTH_LONG).show()
                 } else {
+                    Log.d("OwnerBookingMgmt", "Fetched ${documents.size()} spots for management.")
                     for (document in documents) {
                         val spotId = document.id
                         val name = document.getString("name") ?: "Unnamed Spot"
@@ -95,7 +105,6 @@ class OwnerBookingManagementActivity : AppCompatActivity() {
                         )
                         ownedParkingSpotsList.add(spot)
                     }
-                    Log.d("OwnerBookingMgmt", "Fetched ${ownedParkingSpotsList.size} spots for management.")
                 }
                 ownedParkingSpotsAdapter.notifyDataSetChanged()
                 binding.progressBar.visibility = View.GONE
@@ -109,14 +118,14 @@ class OwnerBookingManagementActivity : AppCompatActivity() {
 
     // Helper to launch the detail activity for a specific parking spot
     private fun launchOwnerBookingDetail(spot: ParkingSpot) {
-        // TODO: Create OwnerBookingDetailActivity and pass spot data
-        Toast.makeText(this, "Managing bookings for ${spot.name}", Toast.LENGTH_SHORT).show()
-        // Example:
-        // val intent = Intent(this, OwnerBookingDetailActivity::class.java).apply {
-        //     putExtra("SPOT_ID", spot.id)
-        //     putExtra("SPOT_NAME", spot.name)
-        //     // Pass any other necessary spot details
-        // }
-        // startActivity(intent)
+        val intent = Intent(this, OwnerBookingDetailActivity::class.java).apply {
+            putExtra("SELECTED_SPOT_ID", spot.id)
+            putExtra("SELECTED_SPOT_NAME", spot.name)
+            putExtra("SELECTED_SPOT_TOTAL_SLOTS", spot.totalSlots) // Pass total slots
+            putExtra("SELECTED_SPOT_PRICE_PER_HOUR", spot.pricePerHour) // Pass price
+            putExtra("SELECTED_SPOT_HOURS_START", spot.operatingHoursStartMillis) // Pass hours
+            putExtra("SELECTED_SPOT_HOURS_END", spot.operatingHoursEndMillis) // Pass hours
+        }
+        startActivity(intent)
     }
 }

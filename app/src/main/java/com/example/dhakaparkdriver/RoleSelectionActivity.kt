@@ -13,17 +13,14 @@ class RoleSelectionActivity : AppCompatActivity() {
         binding = ActivityRoleSelectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Listener for the Owner button
         binding.buttonOwner.setOnClickListener {
             navigateToLogin("owner")
         }
 
-        // Listener for the Driver button
         binding.buttonDriver.setOnClickListener {
             navigateToLogin("driver")
         }
 
-        // Listener for the Parking Attendant/Guard button
         binding.buttonParkingAttendant.setOnClickListener {
             navigateToLogin("guard")
         }

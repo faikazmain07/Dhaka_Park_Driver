@@ -6,66 +6,73 @@
     android:layout_height="match_parent"
     tools:context=".DriverDashboardActivity">
 
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <LinearLayout
+        <!-- Map View -->
+        <fragment
+            android:id="@+id/map_fragment_container"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
-            <!-- Map View -->
-            <androidx.fragment.app.FragmentContainerView
-                android:id="@+id/map_fragment_container"
-                android:name="com.google.android.gms.maps.SupportMapFragment"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+        <!-- Progress Bar (often used to indicate loading) -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:visibility="gone" />
 
-            <!-- Progress Bar (often used to indicate loading) -->
-            <ProgressBar
-                android:id="@+id/progressBar"
-                style="?android:attr/progressBarStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:visibility="gone" />
+        <!-- List of Nearby Parking Spots -->
+        <TextView
+            android:id="@+id/tvNearbySpotsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:text="@string/nearby_parking_spots"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
 
-            <!-- List of Nearby Parking Spots -->
-            <TextView
-                android:id="@+id/tvNearbySpotsTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp"
-                android:text="Nearby Parking Spots"
-                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvParkingSpots"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.8"
+            android:nestedScrollingEnabled="false"
+            tools:itemCount="3"
+            tools:listitem="@layout/list_item_parking_spot" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvParkingSpots"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:itemCount="3"
-                tools:listitem="@layout/list_item_parking_spot" />
+        <!-- NEW: My Bookings Button -->
+        <Button
+            android:id="@+id/btnMyBookings"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="16dp"
+            android:padding="16dp"
+            android:text="@string/my_bookings" />
 
-            <!-- Driver Logout Button -->
-            <Button
-                android:id="@+id/btnDriverLogout"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="16dp"
-                android:text="Logout" />
+        <!-- Driver Logout Button -->
+        <Button
+            android:id="@+id/btnDriverLogout"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:text="@string/logout" />
 
-        </LinearLayout>
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

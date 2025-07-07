@@ -13,6 +13,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.ktx.firestore
@@ -168,11 +169,10 @@ class RegisterActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 Log.d("RegisterActivity", "User profile successfully saved to Firestore for UID: ${firebaseUser.uid}")
                 binding.progressBar.visibility = View.GONE
-                Toast.makeText(baseContext, "Registration successful! Please check your email for verification.", Toast.LENGTH_LONG).show() // Specific message
+                Toast.makeText(baseContext, "Registration successful! Please check your email for verification.", Toast.LENGTH_LONG).show()
 
-                sendEmailVerification() // <--- Now calls the standard email verification
+                sendEmailVerification() // Call to send email verification
 
-                // Redirect to EmailVerificationActivity and sign out
                 auth.signOut()
                 val intent = Intent(this, EmailVerificationActivity::class.java).apply {
                     putExtra("USER_EMAIL", email)
@@ -183,13 +183,12 @@ class RegisterActivity : AppCompatActivity() {
                 finish()
             }
             .addOnFailureListener { e ->
-                binding.progressBar.visibility = View.GONE
+                Toast.makeText(this, "Failed to save spot: ${e.message}", Toast.LENGTH_LONG).show()
                 Log.e("RegisterActivity", "Error saving user profile to Firestore.", e)
                 Toast.makeText(baseContext, "Error saving profile: ${e.message}", Toast.LENGTH_LONG).show()
             }
     }
 
-    // --- NEW: Function to send standard email verification (no ActionCodeSettings) ---
     private fun sendEmailVerification() {
         val user = auth.currentUser
 
